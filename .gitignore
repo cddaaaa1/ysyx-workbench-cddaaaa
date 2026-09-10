@@ -10,7 +10,7 @@
 !README.md
 !.gitignore
 !init.sh
-!nvboard
+!/navy-apps/*
 /fceux-am
 /am-kernels
 # /nvboard
