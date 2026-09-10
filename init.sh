@@ -18,7 +18,8 @@ function init() {
   fi
 
   while [ ! -d $3 ]; do
-    git clone --depth 1 -b $2 git@github.com:$1.git $3
+    # git clone --depth 1 -b $2 git@github.com:$1.git $3
+    git clone --depth 1 -b $2 https://github.com/$1.git $3
   done
   log="$1 `cd $3 && git log --oneline --no-abbrev-commit -n1`"$'\n'
 
