@@ -8,13 +8,8 @@
       "intelliSenseMode": "linux-gcc-x64",
       "includePath": [
         "${workspaceFolder}/nvboard/usr/include",
-        "${workspaceFolder}/nvboard/nju-projects/exp2-decoder-encoder",
-        "${workspaceFolder}/nvboard/nju-projects/exp2-bcd7seg",
-        "${workspaceFolder}/nvboard/nju-projects/exp2-bcd7seg/obj_dir",
-        "${workspaceFolder}/nvboard/flowing-lights/csrc",
-        "${workspaceFolder}/nvboard/flowing-lights/build/obj_dir",
-        "${workspaceFolder}/nvboard/two-way-switch/csrc",
-        "${workspaceFolder}/nvboard/two-way-switch/build/obj_dir",
+        "${workspaceFolder}/nvboard/nju-projects/**",
+        "${workspaceFolder}/nvboard/nju-projects/**/obj_dir",
         "/usr/include/SDL2",
         "/usr/local/share/verilator/include"
       ],

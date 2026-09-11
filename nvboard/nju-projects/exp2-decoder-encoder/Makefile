@@ -4,10 +4,10 @@ INC_PATH ?=
 
 VERILATOR = verilator
 VERILATOR_CFLAGS += -MMD --build -cc  \
-				-O3 --x-assign fast --x-initial fast --noassert
+				-O3 --x-assign fast --x-initial fast --noassert --trace
 
 BUILD_DIR = ./build
-OBJ_DIR = $(BUILD_DIR)/obj_dir
+OBJ_DIR = ./obj_dir
 BIN = $(BUILD_DIR)/$(TOPNAME)
 
 default: $(BIN)
@@ -44,7 +44,7 @@ run: $(BIN)
 	@$^
 
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) $(OBJ_DIR)
 
 .PHONY: default all clean run
 
@@ -53,7 +53,7 @@ SIM_TOP = top
 SIM_TOP_SRC = $(abspath ./vsrc/top.v)
 SIM_VSRCS = $(SIM_TOP_SRC) $(filter-out $(SIM_TOP_SRC), $(VSRCS))
 SIM_CSRC = $(abspath ./csrc/main.cpp)
-SIM_OBJ_DIR = ./obj_dir
+SIM_OBJ_DIR = $(OBJ_DIR)
 SIM_BIN = ./build/sim-$(SIM_TOP)
 
 sim: $(SIM_BIN)
