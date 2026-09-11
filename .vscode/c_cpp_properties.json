@@ -9,6 +9,8 @@
       "includePath": [
         "${workspaceFolder}/nvboard/usr/include",
         "${workspaceFolder}/nvboard/nju-projects/exp2-decoder-encoder",
+        "${workspaceFolder}/nvboard/nju-projects/exp2-bcd7seg",
+        "${workspaceFolder}/nvboard/nju-projects/exp2-bcd7seg/obj_dir",
         "${workspaceFolder}/nvboard/flowing-lights/csrc",
         "${workspaceFolder}/nvboard/flowing-lights/build/obj_dir",
         "${workspaceFolder}/nvboard/two-way-switch/csrc",

@@ -47,3 +47,29 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 .PHONY: default all clean run
+
+# Pure Verilator simulation for the top.v testbench in this project.
+SIM_TOP = top
+SIM_TOP_SRC = $(abspath ./vsrc/top.v)
+SIM_VSRCS = $(SIM_TOP_SRC) $(filter-out $(SIM_TOP_SRC), $(VSRCS))
+SIM_CSRC = $(abspath ./csrc/main.cpp)
+SIM_OBJ_DIR = ./obj_dir
+SIM_BIN = ./build/sim-$(SIM_TOP)
+
+sim: $(SIM_BIN)
+
+$(SIM_BIN): $(SIM_VSRCS) $(SIM_CSRC)
+	@rm -rf $(SIM_OBJ_DIR)
+	@mkdir -p $(dir $(SIM_BIN))
+	$(VERILATOR) $(VERILATOR_CFLAGS) --trace \
+		--top-module $(SIM_TOP) $(SIM_VSRCS) \
+		--Mdir $(SIM_OBJ_DIR) --exe $(SIM_CSRC) \
+		-CFLAGS "-I$(CURDIR)" -o $(abspath $(SIM_BIN))
+
+sim-run: $(SIM_BIN)
+	@./$(SIM_BIN)
+
+sim-clean:
+	rm -rf $(SIM_OBJ_DIR) $(SIM_BIN) dump.vcd
+
+.PHONY: sim sim-run sim-clean
