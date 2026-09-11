@@ -7,7 +7,7 @@
       "cppStandard": "c++17",
       "intelliSenseMode": "linux-gcc-x64",
       "includePath": [
-        // "${workspaceFolder}/nvboard/usr/include",
+        "${workspaceFolder}/nvboard/usr/include",
         "${workspaceFolder}/nvboard/include",
         "${workspaceFolder}/nvboard/nju-projects/**",
         "${workspaceFolder}/nvboard/nju-projects/**/obj_dir",
