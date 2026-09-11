@@ -1,0 +1,25 @@
+{
+  "configurations": [
+    {
+      "name": "Linux",
+      "compilerPath": "/usr/bin/g++",
+      "cStandard": "c17",
+      "cppStandard": "c++17",
+      "intelliSenseMode": "linux-gcc-x64",
+      "includePath": [
+        "${workspaceFolder}/nvboard/usr/include",
+        "${workspaceFolder}/nvboard/nju-projects/exp2-decoder-encoder",
+        "${workspaceFolder}/nvboard/flowing-lights/csrc",
+        "${workspaceFolder}/nvboard/flowing-lights/build/obj_dir",
+        "${workspaceFolder}/nvboard/two-way-switch/csrc",
+        "${workspaceFolder}/nvboard/two-way-switch/build/obj_dir",
+        "/usr/include/SDL2",
+        "/usr/local/share/verilator/include"
+      ],
+      "defines": [
+        "TOP_NAME=Vtop"
+      ]
+    }
+  ],
+  "version": 4
+}
