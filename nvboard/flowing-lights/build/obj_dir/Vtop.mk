@@ -4,7 +4,7 @@
 # Execute this makefile from the object directory:
 #    make -f Vtop.mk
 
-default: /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/two-way-switch/build/top
+default: /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/flowing-lights/build/top
 
 ### Constants...
 # Perl executable (from $PERL)
@@ -56,8 +56,8 @@ VM_USER_CLASSES = \
 
 # User .cpp directories (from .cpp's on Verilator command line)
 VM_USER_DIR = \
-	/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/two-way-switch/build \
-	/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/two-way-switch/csrc \
+	/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/flowing-lights/build \
+	/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/flowing-lights/csrc \
 
 
 ### Default rules...
@@ -69,13 +69,13 @@ include $(VERILATOR_ROOT)/include/verilated.mk
 ### Executable rules... (from --exe)
 VPATH += $(VM_USER_DIR)
 
-auto_bind.o: /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/two-way-switch/build/auto_bind.cpp
+auto_bind.o: /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/flowing-lights/build/auto_bind.cpp
 	$(OBJCACHE) $(CXX) $(CXXFLAGS) $(CPPFLAGS) $(OPT_FAST) -c -o $@ $<
-main.o: /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/two-way-switch/csrc/main.cpp
+main.o: /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/flowing-lights/csrc/main.cpp
 	$(OBJCACHE) $(CXX) $(CXXFLAGS) $(CPPFLAGS) $(OPT_FAST) -c -o $@ $<
 
 ### Link rules... (from --exe)
-/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/two-way-switch/build/top: $(VK_USER_OBJS) $(VK_GLOBAL_OBJS) $(VM_PREFIX)__ALL.a $(VM_HIER_LIBS)
+/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/flowing-lights/build/top: $(VK_USER_OBJS) $(VK_GLOBAL_OBJS) $(VM_PREFIX)__ALL.a $(VM_HIER_LIBS)
 	$(LINK) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) $(LIBS) $(SC_LIBS) -o $@
 
 

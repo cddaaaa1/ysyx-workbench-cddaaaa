@@ -1,5 +1,5 @@
 main.o: \
- /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/two-way-switch/csrc/main.cpp \
+ /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/flowing-lights/csrc/main.cpp \
  /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/usr/include/nvboard.h \
  /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nvboard/usr/include/pins.h \
  Vtop.h /usr/local/share/verilator/include/verilated.h \
