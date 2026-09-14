@@ -40,20 +40,11 @@ static void sim_exit()
 static uint8_t expected_segments(uint8_t value)
 {
     static const uint8_t hex_segments[16] = {
-        0x40, 0x79, 0x24, 0x30,
-        0x19, 0x12, 0x02, 0x78,
-        0x00, 0x10, 0x08, 0x03,
-        0x46, 0x21, 0x06, 0x0e};
-    uint8_t segments = hex_segments[value & 0xf];
-    return static_cast<uint8_t>(
-        ((segments & 0x01) << 7) |
-        ((segments & 0x02) << 5) |
-        ((segments & 0x04) << 3) |
-        ((segments & 0x08) << 1) |
-        ((segments & 0x10) >> 1) |
-        ((segments & 0x20) >> 3) |
-        ((segments & 0x40) >> 5) |
-        0x01);
+        0x03, 0x9f, 0x25, 0x0d,
+        0x99, 0x49, 0x41, 0x1f,
+        0x01, 0x09, 0x11, 0xc1,
+        0x63, 0x85, 0x61, 0x71};
+    return hex_segments[value & 0xf];
 }
 
 static int check_display(uint8_t expected)

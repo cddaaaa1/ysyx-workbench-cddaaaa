@@ -28,13 +28,7 @@ module top(
     .h (high_hex)
   );
 
-  // NVBoard order is {A, B, C, D, E, F, G, DP}; DP stays off.
-  assign seg0 = {
-    low_hex[0], low_hex[1], low_hex[2], low_hex[3],
-    low_hex[4], low_hex[5], low_hex[6], 1'b1
-  };
-  assign seg1 = {
-    high_hex[0], high_hex[1], high_hex[2], high_hex[3],
-    high_hex[4], high_hex[5], high_hex[6], 1'b1
-  };
+  // hex7seg output already uses NVBoard order {A, B, C, D, E, F, G, DP}.
+  assign seg0 = {low_hex, 1'b1};
+  assign seg1 = {high_hex, 1'b1};
 endmodule
