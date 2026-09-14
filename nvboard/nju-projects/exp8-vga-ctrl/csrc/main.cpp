@@ -1,0 +1,36 @@
+#include <nvboard.h>
+#include "../obj_dir/Vtop.h"
+
+static TOP_NAME dut;
+
+void nvboard_bind_all_pins(TOP_NAME *top);
+
+static void single_cycle()
+{
+    dut.clk = 0;
+    dut.eval();
+    dut.clk = 1;
+    dut.eval();
+}
+
+static void reset(int cycles)
+{
+    dut.rst = 1;
+    while (cycles-- > 0)
+        single_cycle();
+    dut.rst = 0;
+}
+
+int main()
+{
+    nvboard_bind_all_pins(&dut);
+    nvboard_init();
+
+    reset(10);
+
+    while (true)
+    {
+        nvboard_update();
+        single_cycle();
+    }
+}
