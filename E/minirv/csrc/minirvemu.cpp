@@ -4,7 +4,9 @@
 #include <string.h>
 
 #define OP_IMM      0x13 // inst[6:0]   = 0010011, 立即数运算指令组
+#define OP_JALR     0x67 // inst[6:0]   = 1100111, 跳转并链接指令组
 #define FUNCT3_ADDI 0x00 // inst[14:12] = 000,     该组内的 addi 指令
+#define FUNCT3_JALR 0x00 // inst[14:12] = 000,     该组内的 jalr 指令
 
 static uint32_t PC;
 static uint32_t R[REF_REGISTER_COUNT];
@@ -58,7 +60,8 @@ int ref_inst_cycle(void)
 		return -1;
 	}
 
-	// addi 的编码: imm[31:20] | rs1[19:15] | 000 | rd[11:7] | 0010011
+	// addi / jalr 都是 I 型指令, 字段排布:
+	// imm[31:20] | rs1[19:15] | funct3[14:12] | rd[11:7] | opcode[6:0]
 	uint32_t inst   = M[addr];
 	uint32_t opcode = inst & 0x7f;         
 	uint32_t rd     = (inst >> 7) & 0x1f;  
@@ -74,6 +77,20 @@ int ref_inst_cycle(void)
 		case FUNCT3_ADDI:
 			R[rd] = R[rs1] + (uint32_t)imm;
 			break;
+		default:
+			fprintf(stderr, "invalid funct3 %u at PC=0x%08x\n", funct3, PC);
+			return -1;
+		}
+		break;
+	case OP_JALR:
+		switch (funct3) {
+		case FUNCT3_JALR: {
+			// 先把目标算出来再写 rd: rd 和 rs1 允许是同一个寄存器
+			uint32_t target = (R[rs1] + (uint32_t)imm) & ~1u; // 目标最低位清零
+			R[rd] = PC + 4; // 链接地址 = 下一条指令的地址
+			next_pc = target;
+			break;
+		}
 		default:
 			fprintf(stderr, "invalid funct3 %u at PC=0x%08x\n", funct3, PC);
 			return -1;

@@ -25,21 +25,46 @@ typedef struct {
 #define REG_END   { REG_NONE, 0u }
 
 
-// addi 编码: imm[31:20] | rs1[19:15] | 000 | rd[11:7] | 0010011
-// ABI 名对应: zero = x0, a0 = x10, a1 = x11
+// I 型指令编码: imm[31:20] | rs1[19:15] | funct3[14:12] | rd[11:7] | opcode[6:0]
+//   addi: funct3=000, opcode=0010011      jalr: funct3=000, opcode=1100111
+// ABI 名对应: zero = x0, ra = x1, a0 = x10, a1 = x11
 
-static const uint32_t prog_a0_20[]    = { 0x01400513 };             // addi a0,zero,20
-static const uint32_t prog_a0_neg2[]    = { 0xffe00513 };             // addi a0,zero,-2
+static const uint32_t prog_a0_20[]   = { 0x01400513 };  // addi a0,zero,20
+static const uint32_t prog_a0_neg2[] = { 0xffe00513 };  // addi a0,zero,-2
+
+// 文档给出的测试程序: jalr 调用 fun、返回, 最后陷入 halt 死循环
+static const uint32_t prog_jalr_doc[] = {
+	0x01400513, //  0: addi a0,zero,20
+	0x010000e7, //  4: jalr ra,16(zero)    -> ra = 8, 跳到 16
+	0x00c000e7, //  8: jalr ra,12(zero)    -> ra = 12, 跳到 0xc
+	0x00c00067, //  12: jalr zero,12(zero)  -> 跳回自己, 死循环 (halt)
+	0x00a50513, // 16: addi a0,a0,10       (fun 的入口)
+	0x00008067, // 20: jalr zero,0(ra)     -> 返回到 ra 指向的地址
+};
+
+// rd 与 rs1 是同一个寄存器: 必须先算跳转目标, 再写 rd
+static const uint32_t prog_jalr_rd_rs1[] = {
+	0x01400093, // 0: addi ra,zero,20      -> ra = 20
+	0x000080e7, // 4: jalr ra,0(ra)        -> 目标 = 20, 链接地址 = 8
+};
 
 static const test_case_t test_cases[] = {
 	// 用例名, 指令序列, 条数, 期望 PC, 期望的 GPR
 	{ "addi a0,zero,20",
 	  prog_a0_20, ARRAY_LEN(prog_a0_20), 4,
 	  { REG(10, 20), REG_END } },
-    
-    { "addi a0,zero,-2",
+
+	{ "addi a0,zero,-2",
 	  prog_a0_neg2, ARRAY_LEN(prog_a0_neg2), 4,
 	  { REG(10, 0xfffffffeu), REG_END } },
+
+	{ "jalr: 调用 fun、返回, 最后 halt 死循环 (文档测试程序)",
+	  prog_jalr_doc, ARRAY_LEN(prog_jalr_doc), 0xc,
+	  { REG(1, 12), REG(10, 30), REG_END } },
+
+	{ "jalr 的 rd 与 rs1 是同一个寄存器",
+	  prog_jalr_rd_rs1, ARRAY_LEN(prog_jalr_rd_rs1), 0x14,
+	  { REG(1, 8), REG_END } },
 };
 
 // 打印现场, 便于定位失败原因
@@ -64,13 +89,17 @@ static int run_case(const test_case_t *tc)
 	ref_reset();
 
 	for (int cycle = 0; cycle < MAX_CYCLES; cycle++) {
-		if (ref_get_pc() >= (uint32_t)tc->inst_count * 4)
+		uint32_t pc_before = ref_get_pc();
+
+		if (pc_before >= (uint32_t)tc->inst_count * 4)
 			break;
 		if (ref_inst_cycle() < 0) {
 			printf("         [FAIL] 执行第 %d 条指令时出错, PC=0x%08x\n",
 			       cycle, ref_get_pc());
 			return 1;
 		}
+		if (ref_get_pc() == pc_before) // 跳回自身, 视为程序结束
+			break;
 	}
 
 	R = ref_get_regs();
