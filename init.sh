@@ -57,7 +57,7 @@ case $1 in
     init NJU-ProjectN/navy-apps ics2024 navy-apps false NAVY_HOME
     ;;
   nvboard)
-    init NJU-ProjectN/nvboard master nvboard false NVBOARD_HOME
+    init NJU-ProjectN/nvboard master E/nvboard false NVBOARD_HOME
     ;;
   npc-chisel)
     if [ -d npc/playground ]; then

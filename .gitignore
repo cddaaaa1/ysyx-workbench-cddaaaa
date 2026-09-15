@@ -10,10 +10,11 @@
 !README.md
 !.gitignore
 !init.sh
-!/nvboard/*
+!/E/*
+!/E/nvboard/*
 /fceux-am
 /am-kernels
-# /nvboard
+# /nvboard (moved to /E/nvboard)
 
 # Generated build directories (keep source and configuration in Git).
 **/build/

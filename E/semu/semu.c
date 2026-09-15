@@ -67,7 +67,7 @@ static void inst_cycle(void)
 
 int main(int argc, char **argv)
 {
-	const char *program_path = argc > 1 ? argv[1] : "scpu/program/sum.hex";
+	const char *program_path = argc > 1 ? argv[1] : "E/scpu/program/sum.hex";
 	load_program(program_path);
 
 	for (int cycle = 0; cycle < 64 && PC != PROGRAM_SIZE; cycle++) {
