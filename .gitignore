@@ -12,8 +12,6 @@
 !init.sh
 !/E/*
 !/E/nvboard/*
-!/E/semu/semu.cpp
-!/E/semu/semu.h
 /fceux-am
 /am-kernels
 # /nvboard (moved to /E/nvboard)
