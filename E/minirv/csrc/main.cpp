@@ -24,15 +24,9 @@ typedef struct {
 #define REG(r, v) { (r), (v) }
 #define REG_END   { REG_NONE, 0u }
 
-
-// I 型指令编码: imm[31:20] | rs1[19:15] | funct3[14:12] | rd[11:7] | opcode[6:0]
-//   addi: funct3=000, opcode=0010011      jalr: funct3=000, opcode=1100111
-// ABI 名对应: zero = x0, ra = x1, a0 = x10, a1 = x11
-
 static const uint32_t prog_a0_20[]   = { 0x01400513 };  // addi a0,zero,20
 static const uint32_t prog_a0_neg2[] = { 0xffe00513 };  // addi a0,zero,-2
 
-// 文档给出的测试程序: jalr 调用 fun、返回, 最后陷入 halt 死循环
 static const uint32_t prog_jalr_doc[] = {
 	0x01400513, //  0: addi a0,zero,20
 	0x010000e7, //  4: jalr ra,16(zero)    -> ra = 8, 跳到 16
@@ -42,22 +36,35 @@ static const uint32_t prog_jalr_doc[] = {
 	0x00008067, // 20: jalr zero,0(ra)     -> 返回到 ra 指向的地址
 };
 
-// rd 与 rs1 是同一个寄存器: 必须先算跳转目标, 再写 rd
 static const uint32_t prog_jalr_rd_rs1[] = {
 	0x01400093, // 0: addi ra,zero,20      -> ra = 20
 	0x000080e7, // 4: jalr ra,0(ra)        -> 目标 = 20, 链接地址 = 8
 };
 
-// R 型: funct7[31:25] | rs2[24:20] | rs1[19:15] | funct3[14:12] | rd[11:7] | opcode[6:0]
 static const uint32_t prog_add[] = {
 	0x01400513, // 0: addi a0,zero,20      -> a0 = 20
 	0x00100593, // 4: addi a1,zero,1       -> a1 = 1
 	0x00b50533, // 8: add  a0,a0,a1        -> a0 = 21
 };
 
-// U 型: imm[31:12] | rd[11:7] | opcode[6:0]   (没有 funct3 字段)
 static const uint32_t prog_lui[] = {
 	0x123450b7, // 0: lui ra,0x12345        -> ra = 0x12345 << 12 = 0x12345000
+};
+
+static const uint32_t prog_lw[] = {
+	0x00c00593, //  0: addi a1,zero,12     -> a1 = 12 (数据的字节地址)
+	0x0005a503, //  4: lw   a0,0(a1)        -> a0 = M[12 >> 2] = M[3]
+	0x00800067, //  8: jalr zero,8(zero)    -> 跳回自己, halt
+	0x12345678, // 12: 数据 (M[3])
+};
+
+static const uint32_t prog_sw[] = {
+	0x02a00113, //  0: addi x2,zero,42      -> x2 = 42 (待写入的数据)
+	0x00400193, //  4: addi x3,zero,4       -> x3 = 4  (基址)
+	0x0621a223, //  8: sw   x2,100(x3)      -> M[(4 + 100) >> 2] = M[26] = 42
+	0x00000113, // 12: addi x2,zero,0      -> x2 = 0, 证明下面读的确实是内存
+	0x0641a203, // 16: lw   x4,100(x3)     -> x4 = M[26] = 42
+	0x01400067, // 20: jalr zero,20(zero)  -> 跳回自己, halt
 };
 
 static const test_case_t test_cases[] = {
@@ -84,6 +91,14 @@ static const test_case_t test_cases[] = {
 	{ "LUI ra, 0x12345",
 	  prog_lui, ARRAY_LEN(prog_lui), 4,
 	  { REG(1, 0x12345000), REG_END } },
+
+	{ "lw: 从 M[3] 读出数据 0x12345678",
+	  prog_lw, ARRAY_LEN(prog_lw), 8,
+	  { REG(10, 0x12345678), REG(11, 12), REG_END } },
+
+	{ "sw: sw x2,100(x3) 后再 lw 读回",
+	  prog_sw, ARRAY_LEN(prog_sw), 0x14,
+	  { REG(2, 0), REG(3, 4), REG(4, 42), REG_END } },
 };
 
 // 打印现场, 便于定位失败原因

@@ -8,12 +8,27 @@
 #define OP_JALR     0x67 // 1100111, 跳转并链接组 (JALR)
 #define OP_R        0x33 // 0110011, 寄存器-寄存器运算组 (OP)
 #define OP_LUI      0x37 // 0110111, 大立即数组 (LUI, U 型)
+#define OP_LOAD 	0x03 // 0000011, LOAD
+#define OP_STORE 	0x23 // 0100011, STORE
 
 // funct3 (inst[14:12]) 与 funct7 (inst[31:25]), 在同一 opcode 组内区分具体指令
 #define FUNCT3_ADDI 0x00 // OP_IMM  组内的 addi
 #define FUNCT3_JALR 0x00 // OP_JALR 组内的 jalr
 #define FUNCT3_ADD  0x00 // OP_R    组内的 add
 #define FUNCT7_ADD  0x00 // OP_R    组内的 add (sub 的 funct7 为 0x20)
+#define FUNCT3_LW	0x02 // OP_LOAD 组内的 lw
+#define FUNCT3_SW	0x02 // OP_STORE 组内的 sw
+
+static inline int32_t imm_i(uint32_t inst) // I 型: inst[31:20], 12 位有符号数
+{
+	return (int32_t)inst >> 20; 
+}
+
+static inline int32_t imm_s(uint32_t inst) // S 型: inst[31:25] | inst[11:7], 12 位有符号数
+{
+	uint32_t imm = ((inst >> 25) << 5) | ((inst >> 7) & 0x1f); // 两段拼成 12 位
+	return (int32_t)(imm << 20) >> 20;                         // 符号扩展到 32 位
+}
 
 static uint32_t PC;
 static uint32_t R[REF_REGISTER_COUNT];
@@ -66,27 +81,26 @@ int ref_inst_cycle(void)
 		fprintf(stderr, "PC 0x%08x is out of memory range\n", PC);
 		return -1;
 	}
-
 	// I 型: imm[31:20] | rs1[19:15] | funct3[14:12] | rd[11:7] | opcode[6:0]
 	// R 型: funct7[31:25] | rs2[24:20] | rs1[19:15] | funct3[14:12] | rd[11:7] | opcode[6:0]
 	// U 型: imm[31:12] | rd[11:7] | opcode[6:0] 
-	// 这里把用得到的字段统一取出来, 各指令组按自己的格式取用
+	// 下面这些字段的位位置在 6 种格式里固定, 因此可以统一取出;
+	// 立即数是唯一随格式变化的字段, 改用 imm_*() 按格式分别计算
 	uint32_t inst   = M[addr];
 	uint32_t opcode = inst & 0x7f;         
 	uint32_t rd     = (inst >> 7) & 0x1f;  
 	uint32_t funct3 = (inst >> 12) & 0x07; 
 	uint32_t rs1    = (inst >> 15) & 0x1f; 
 	uint32_t rs2    = (inst >> 20) & 0x1f;
-	int32_t  imm    = (int32_t)inst >> 20;
 	uint32_t funct7 = (inst >> 25) & 0x7f;
 	
-	uint32_t next_pc = PC + 4; // RISC-V 指令位宽 4 字节, PC 按字节递增
+	uint32_t next_pc = PC + 4;
 
 	switch (opcode) {
 	case OP_IMM: 
 		switch (funct3) {
 		case FUNCT3_ADDI:
-			R[rd] = R[rs1] + (uint32_t)imm;
+			R[rd] = R[rs1] + (uint32_t)imm_i(inst);
 			break;
 		default:
 			fprintf(stderr, "invalid funct3 %u at PC=0x%08x\n", funct3, PC);
@@ -97,7 +111,7 @@ int ref_inst_cycle(void)
 		switch (funct3) {
 		case FUNCT3_JALR: {
 			// 先把目标算出来再写 rd: rd 和 rs1 允许是同一个寄存器
-			uint32_t target = (R[rs1] + (uint32_t)imm) & ~1u; // 目标最低位清零
+			uint32_t target = (R[rs1] + (uint32_t)imm_i(inst)) & ~1u; // 目标最低位清零
 			R[rd] = PC + 4; // 链接地址 = 下一条指令的地址
 			next_pc = target;
 			break;
@@ -127,6 +141,38 @@ int ref_inst_cycle(void)
 	case OP_LUI: 
 		R[rd] = inst & 0xfffff000; 
 		break;
+	case OP_LOAD:
+		switch (funct3) {
+		case FUNCT3_LW: {
+			uint32_t vaddr = R[rs1] + (uint32_t)imm_i(inst);
+			if ((vaddr >> 2) >= REF_MEMORY_SIZE) {
+				fprintf(stderr, "lw: address 0x%08x out of memory range\n", vaddr);
+				return -1;
+			}
+			R[rd] = M[vaddr >> 2];
+			break;
+		}
+		default:
+			fprintf(stderr, "invalid funct3 %u at PC=0x%08x\n", funct3, PC);
+			return -1;
+		}
+		break;
+	case OP_STORE:
+		switch (funct3) {
+		case FUNCT3_SW: {
+			uint32_t vaddr = R[rs1] + (uint32_t)imm_s(inst); 
+			if ((vaddr >> 2) >= REF_MEMORY_SIZE) {
+				fprintf(stderr, "sw: address 0x%08x out of memory range\n", vaddr);
+				return -1;
+			}
+			M[vaddr >> 2] = R[rs2]; 
+			break;
+		}
+		default:
+			fprintf(stderr, "invalid funct3 %u at PC=0x%08x\n", funct3, PC);
+			return -1;
+		}
+		break;
 	default:
 		fprintf(stderr, "invalid opcode 0x%02x at PC=0x%08x\n", opcode, PC);
 		return -1;
@@ -146,8 +192,4 @@ uint32_t ref_get_pc(void)
 {
 	return PC;
 }
-
-
-
-
 
