@@ -67,6 +67,27 @@ static const uint32_t prog_sw[] = {
 	0x01400067, // 20: jalr zero,20(zero)  -> 跳回自己, halt
 };
 
+// lbu: 从同一个字里依次取出 4 个字节 
+static const uint32_t prog_lbu[] = {
+	0x01800593, //  0: addi a1,zero,24      -> a1 = 24 (数据的字节地址)
+	0x0005c503, //  4: lbu  a0,0(a1)        -> a0 = 0x78
+	0x0015c603, //  8: lbu  a2,1(a1)        -> a2 = 0x56
+	0x0025c683, // 12: lbu  a3,2(a1)        -> a3 = 0x34
+	0x0035c703, // 16: lbu  a4,3(a1)        -> a4 = 0x12
+	0x01400067, // 20: jalr zero,20(zero)   -> 跳回自己, halt
+	0x12345678, // 24: 数据 (M[6])
+};
+
+// sb 只改一个字节, 必须用 lw 把整个字读回来, 才能发现"其余字节被破坏"
+static const uint32_t prog_sb[] = {
+	0x01400593, //  0: addi a1,zero,20      -> a1 = 20 (数据的字节地址)
+	0x0ab00613, //  4: addi a2,zero,0xab    -> a2 = 0xab (待写入的字节)
+	0x00c580a3, //  8: sb   a2,1(a1)        -> 0x12345678 变成 0x1234AB78
+	0x0005a683, // 12: lw   a3,0(a1)        -> a3 = 0x1234AB78
+	0x01000067, // 16: jalr zero,16(zero)   -> 跳回自己, halt
+	0x12345678, // 20: 数据 (M[5])
+};
+
 static const test_case_t test_cases[] = {
 	{ "addi a0,zero,20",
 	  prog_a0_20, ARRAY_LEN(prog_a0_20), 4,
@@ -99,6 +120,15 @@ static const test_case_t test_cases[] = {
 	{ "sw: sw x2,100(x3) 后再 lw 读回",
 	  prog_sw, ARRAY_LEN(prog_sw), 0x14,
 	  { REG(2, 0), REG(3, 4), REG(4, 42), REG_END } },
+
+	{ "lbu: 从同一个字里依次取出 4 个字节",
+	  prog_lbu, ARRAY_LEN(prog_lbu), 0x14,
+	  { REG(10, 0x78), REG(11, 24), REG(12, 0x56),
+	    REG(13, 0x34), REG(14, 0x12), REG_END } },
+
+	{ "sb: 只改第 1 个字节, 其余字节不变",
+	  prog_sb, ARRAY_LEN(prog_sb), 0x10,
+	  { REG(11, 20), REG(12, 0xab), REG(13, 0x1234ab78), REG_END } },
 };
 
 // 打印现场, 便于定位失败原因
@@ -187,7 +217,6 @@ int main(void)
 
 	printf("================================\n");
 	printf("通过 %d / %d\n", passed, total);
-
 	return passed == total ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

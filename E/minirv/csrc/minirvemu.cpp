@@ -16,8 +16,10 @@
 #define FUNCT3_JALR 0x00 // OP_JALR 组内的 jalr
 #define FUNCT3_ADD  0x00 // OP_R    组内的 add
 #define FUNCT7_ADD  0x00 // OP_R    组内的 add (sub 的 funct7 为 0x20)
-#define FUNCT3_LW	0x02 // OP_LOAD 组内的 lw
+#define FUNCT3_LW	0x02 // OP_LOAD  组内的 lw
+#define FUNCT3_LBU	0x04 // OP_LOAD  组内的 lbu
 #define FUNCT3_SW	0x02 // OP_STORE 组内的 sw
+#define FUNCT3_SB	0x00 // OP_STORE 组内的 sb
 
 static inline int32_t imm_i(uint32_t inst) // I 型: inst[31:20], 12 位有符号数
 {
@@ -81,9 +83,6 @@ int ref_inst_cycle(void)
 		fprintf(stderr, "PC 0x%08x is out of memory range\n", PC);
 		return -1;
 	}
-	// I 型: imm[31:20] | rs1[19:15] | funct3[14:12] | rd[11:7] | opcode[6:0]
-	// R 型: funct7[31:25] | rs2[24:20] | rs1[19:15] | funct3[14:12] | rd[11:7] | opcode[6:0]
-	// U 型: imm[31:12] | rd[11:7] | opcode[6:0] 
 	// 下面这些字段的位位置在 6 种格式里固定, 因此可以统一取出;
 	// 立即数是唯一随格式变化的字段, 改用 imm_*() 按格式分别计算
 	uint32_t inst   = M[addr];
@@ -152,6 +151,16 @@ int ref_inst_cycle(void)
 			R[rd] = M[vaddr >> 2];
 			break;
 		}
+		case FUNCT3_LBU: {
+			uint32_t vaddr = R[rs1] + (uint32_t)imm_i(inst);
+			if ((vaddr >> 2) >= REF_MEMORY_SIZE) {
+				fprintf(stderr, "lbu: address 0x%08x out of memory range\n", vaddr);
+				return -1;
+			}
+			// 取出字内第 (vaddr & 0x3) 个字节, 零扩展后写回
+			R[rd] = (M[vaddr >> 2] >> ((vaddr & 0x3) * 8)) & 0xff;
+			break;
+		}
 		default:
 			fprintf(stderr, "invalid funct3 %u at PC=0x%08x\n", funct3, PC);
 			return -1;
@@ -166,6 +175,17 @@ int ref_inst_cycle(void)
 				return -1;
 			}
 			M[vaddr >> 2] = R[rs2]; 
+			break;
+		}
+		case FUNCT3_SB: {
+			uint32_t vaddr = R[rs1] + (uint32_t)imm_s(inst);
+			if ((vaddr >> 2) >= REF_MEMORY_SIZE) {
+				fprintf(stderr, "sb: address 0x%08x out of memory range\n", vaddr);
+				return -1;
+			}
+			uint32_t shift = (vaddr & 0x3) * 8; // 目标字节在字内的位偏移
+			M[vaddr >> 2] = (M[vaddr >> 2] & ~(0xffu << shift))
+			              | ((R[rs2] & 0xff) << shift);
 			break;
 		}
 		default:
