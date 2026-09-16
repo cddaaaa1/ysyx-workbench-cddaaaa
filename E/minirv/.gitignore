@@ -3,4 +3,6 @@
 !.gitignore
 !*.cpp
 !*.h
+!*.v
+!*.vh
 !*.hex
