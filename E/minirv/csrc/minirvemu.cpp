@@ -3,10 +3,16 @@
 #include <stdio.h>
 #include <string.h>
 
-#define OP_IMM      0x13 // inst[6:0]   = 0010011, 立即数运算指令组
-#define OP_JALR     0x67 // inst[6:0]   = 1100111, 跳转并链接指令组
-#define FUNCT3_ADDI 0x00 // inst[14:12] = 000,     该组内的 addi 指令
-#define FUNCT3_JALR 0x00 // inst[14:12] = 000,     该组内的 jalr 指令
+// opcode 组 (inst[6:0]), 组名取自 RISC-V 手册的 opcode 编码表
+#define OP_IMM      0x13 // 0010011, 立即数运算组 (OP-IMM)
+#define OP_JALR     0x67 // 1100111, 跳转并链接组 (JALR)
+#define OP_R        0x33 // 0110011, 寄存器-寄存器运算组 (OP)
+
+// funct3 (inst[14:12]) 与 funct7 (inst[31:25]), 在同一 opcode 组内区分具体指令
+#define FUNCT3_ADDI 0x00 // OP_IMM  组内的 addi
+#define FUNCT3_JALR 0x00 // OP_JALR 组内的 jalr
+#define FUNCT3_ADD  0x00 // OP_R    组内的 add
+#define FUNCT7_ADD  0x00 // OP_R    组内的 add (sub 的 funct7 为 0x20)
 
 static uint32_t PC;
 static uint32_t R[REF_REGISTER_COUNT];
@@ -60,15 +66,18 @@ int ref_inst_cycle(void)
 		return -1;
 	}
 
-	// addi / jalr 都是 I 型指令, 字段排布:
-	// imm[31:20] | rs1[19:15] | funct3[14:12] | rd[11:7] | opcode[6:0]
+	// I 型: imm[31:20] | rs1[19:15] | funct3[14:12] | rd[11:7] | opcode[6:0]
+	// R 型: funct7[31:25] | rs2[24:20] | rs1[19:15] | funct3[14:12] | rd[11:7] | opcode[6:0]
+	// 这里把用得到的字段统一取出来, 各指令组按自己的格式取用
 	uint32_t inst   = M[addr];
 	uint32_t opcode = inst & 0x7f;         
 	uint32_t rd     = (inst >> 7) & 0x1f;  
 	uint32_t funct3 = (inst >> 12) & 0x07; 
 	uint32_t rs1    = (inst >> 15) & 0x1f; 
-	int32_t  imm    = (int32_t)inst >> 20; 
-
+	uint32_t rs2    = (inst >> 20) & 0x1f;
+	int32_t  imm    = (int32_t)inst >> 20;
+	uint32_t funct7 = (inst >> 25) & 0x7f;
+	
 	uint32_t next_pc = PC + 4; // RISC-V 指令位宽 4 字节, PC 按字节递增
 
 	switch (opcode) {
@@ -91,6 +100,23 @@ int ref_inst_cycle(void)
 			next_pc = target;
 			break;
 		}
+		default:
+			fprintf(stderr, "invalid funct3 %u at PC=0x%08x\n", funct3, PC);
+			return -1;
+		}
+		break;
+	case OP_R: 
+		switch (funct3) {
+		case FUNCT3_ADD:
+			switch (funct7) {
+			case FUNCT7_ADD: 
+				R[rd] = R[rs1] + R[rs2];
+				break;
+			default:
+				fprintf(stderr, "invalid funct7 0x%02x at PC=0x%08x\n", funct7, PC);
+				return -1;
+			}
+			break; 
 		default:
 			fprintf(stderr, "invalid funct3 %u at PC=0x%08x\n", funct3, PC);
 			return -1;

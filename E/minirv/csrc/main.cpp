@@ -48,8 +48,14 @@ static const uint32_t prog_jalr_rd_rs1[] = {
 	0x000080e7, // 4: jalr ra,0(ra)        -> 目标 = 20, 链接地址 = 8
 };
 
+// R 型: funct7[31:25] | rs2[24:20] | rs1[19:15] | funct3[14:12] | rd[11:7] | opcode[6:0]
+static const uint32_t prog_add[] = {
+	0x01400513, // 0: addi a0,zero,20      -> a0 = 20
+	0x00100593, // 4: addi a1,zero,1       -> a1 = 1
+	0x00b50533, // 8: add  a0,a0,a1        -> a0 = 21
+};
+
 static const test_case_t test_cases[] = {
-	// 用例名, 指令序列, 条数, 期望 PC, 期望的 GPR
 	{ "addi a0,zero,20",
 	  prog_a0_20, ARRAY_LEN(prog_a0_20), 4,
 	  { REG(10, 20), REG_END } },
@@ -65,6 +71,10 @@ static const test_case_t test_cases[] = {
 	{ "jalr 的 rd 与 rs1 是同一个寄存器",
 	  prog_jalr_rd_rs1, ARRAY_LEN(prog_jalr_rd_rs1), 0x14,
 	  { REG(1, 8), REG_END } },
+
+	{ "add: rs1 取 inst[19:15], rs2 取 inst[24:20]",
+	  prog_add, ARRAY_LEN(prog_add), 12,
+	  { REG(10, 21), REG(11, 1), REG_END } },
 };
 
 // 打印现场, 便于定位失败原因
