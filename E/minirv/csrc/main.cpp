@@ -55,6 +55,11 @@ static const uint32_t prog_add[] = {
 	0x00b50533, // 8: add  a0,a0,a1        -> a0 = 21
 };
 
+// U 型: imm[31:12] | rd[11:7] | opcode[6:0]   (没有 funct3 字段)
+static const uint32_t prog_lui[] = {
+	0x123450b7, // 0: lui ra,0x12345        -> ra = 0x12345 << 12 = 0x12345000
+};
+
 static const test_case_t test_cases[] = {
 	{ "addi a0,zero,20",
 	  prog_a0_20, ARRAY_LEN(prog_a0_20), 4,
@@ -72,9 +77,13 @@ static const test_case_t test_cases[] = {
 	  prog_jalr_rd_rs1, ARRAY_LEN(prog_jalr_rd_rs1), 0x14,
 	  { REG(1, 8), REG_END } },
 
-	{ "add: rs1 取 inst[19:15], rs2 取 inst[24:20]",
+	{ "add: a0 = 20 + 1",
 	  prog_add, ARRAY_LEN(prog_add), 12,
 	  { REG(10, 21), REG(11, 1), REG_END } },
+
+	{ "LUI ra, 0x12345",
+	  prog_lui, ARRAY_LEN(prog_lui), 4,
+	  { REG(1, 0x12345000), REG_END } },
 };
 
 // 打印现场, 便于定位失败原因

@@ -7,6 +7,7 @@
 #define OP_IMM      0x13 // 0010011, 立即数运算组 (OP-IMM)
 #define OP_JALR     0x67 // 1100111, 跳转并链接组 (JALR)
 #define OP_R        0x33 // 0110011, 寄存器-寄存器运算组 (OP)
+#define OP_LUI      0x37 // 0110111, 大立即数组 (LUI, U 型)
 
 // funct3 (inst[14:12]) 与 funct7 (inst[31:25]), 在同一 opcode 组内区分具体指令
 #define FUNCT3_ADDI 0x00 // OP_IMM  组内的 addi
@@ -68,6 +69,7 @@ int ref_inst_cycle(void)
 
 	// I 型: imm[31:20] | rs1[19:15] | funct3[14:12] | rd[11:7] | opcode[6:0]
 	// R 型: funct7[31:25] | rs2[24:20] | rs1[19:15] | funct3[14:12] | rd[11:7] | opcode[6:0]
+	// U 型: imm[31:12] | rd[11:7] | opcode[6:0] 
 	// 这里把用得到的字段统一取出来, 各指令组按自己的格式取用
 	uint32_t inst   = M[addr];
 	uint32_t opcode = inst & 0x7f;         
@@ -121,6 +123,9 @@ int ref_inst_cycle(void)
 			fprintf(stderr, "invalid funct3 %u at PC=0x%08x\n", funct3, PC);
 			return -1;
 		}
+		break;
+	case OP_LUI: 
+		R[rd] = inst & 0xfffff000; 
 		break;
 	default:
 		fprintf(stderr, "invalid opcode 0x%02x at PC=0x%08x\n", opcode, PC);
