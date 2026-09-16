@@ -3,15 +3,14 @@
 #include <stdio.h>
 #include <string.h>
 
-// opcode 组 (inst[6:0]), 组名取自 RISC-V 手册的 opcode 编码表
 #define OP_IMM      0x13 // 0010011, 立即数运算组 (OP-IMM)
 #define OP_JALR     0x67 // 1100111, 跳转并链接组 (JALR)
 #define OP_R        0x33 // 0110011, 寄存器-寄存器运算组 (OP)
 #define OP_LUI      0x37 // 0110111, 大立即数组 (LUI, U 型)
 #define OP_LOAD 	0x03 // 0000011, LOAD
 #define OP_STORE 	0x23 // 0100011, STORE
+#define OP_SYSTEM	0x73 // 1110011, SYSTEM
 
-// funct3 (inst[14:12]) 与 funct7 (inst[31:25]), 在同一 opcode 组内区分具体指令
 #define FUNCT3_ADDI 0x00 // OP_IMM  组内的 addi
 #define FUNCT3_JALR 0x00 // OP_JALR 组内的 jalr
 #define FUNCT3_ADD  0x00 // OP_R    组内的 add
@@ -20,6 +19,10 @@
 #define FUNCT3_LBU	0x04 // OP_LOAD  组内的 lbu
 #define FUNCT3_SW	0x02 // OP_STORE 组内的 sw
 #define FUNCT3_SB	0x00 // OP_STORE 组内的 sb
+#define FUNCT3_PRIV	0x00 // OP_SYSTEM 组内的 ecall / ebreak
+
+#define IMM_ECALL	0x00
+#define IMM_EBREAK	0x01
 
 static inline int32_t imm_i(uint32_t inst) // I 型: inst[31:20], 12 位有符号数
 {
@@ -76,6 +79,10 @@ void ref_reset(void)
 	memset(R, 0, sizeof(R));
 }
 
+// 执行一条指令。
+// 返回 0:  正常执行, 调用者应继续执行下一条指令
+// 返回 1:  执行了 ebreak, 即程序自行声明结束 
+// 返回 -1: 非法指令或访问越界, 应当中止
 int ref_inst_cycle(void)
 {
 	uint32_t addr = PC >> 2; 
@@ -188,6 +195,18 @@ int ref_inst_cycle(void)
 			              | ((R[rs2] & 0xff) << shift);
 			break;
 		}
+		default:
+			fprintf(stderr, "invalid funct3 %u at PC=0x%08x\n", funct3, PC);
+			return -1;
+		}
+		break;
+	case OP_SYSTEM: // 系统指令组
+		switch (funct3) {
+		case FUNCT3_PRIV:
+			if (imm_i(inst) == IMM_EBREAK) // 不能只认 opcode: ecall 与 ebreak 只差这一位
+				return 1;                
+			fprintf(stderr, "unsupported trap instruction at PC=0x%08x\n", PC);
+			return -1;
 		default:
 			fprintf(stderr, "invalid funct3 %u at PC=0x%08x\n", funct3, PC);
 			return -1;

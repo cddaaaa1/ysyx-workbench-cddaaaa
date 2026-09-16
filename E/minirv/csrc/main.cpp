@@ -31,7 +31,7 @@ static const uint32_t prog_jalr_doc[] = {
 	0x01400513, //  0: addi a0,zero,20
 	0x010000e7, //  4: jalr ra,16(zero)    -> ra = 8, 跳到 16
 	0x00c000e7, //  8: jalr ra,12(zero)    -> ra = 12, 跳到 0xc
-	0x00c00067, //  12: jalr zero,12(zero)  -> 跳回自己, 死循环 (halt)
+	0x00100073, // 12: ebreak              -> 程序结束 (halt)
 	0x00a50513, // 16: addi a0,a0,10       (fun 的入口)
 	0x00008067, // 20: jalr zero,0(ra)     -> 返回到 ra 指向的地址
 };
@@ -45,16 +45,18 @@ static const uint32_t prog_add[] = {
 	0x01400513, // 0: addi a0,zero,20      -> a0 = 20
 	0x00100593, // 4: addi a1,zero,1       -> a1 = 1
 	0x00b50533, // 8: add  a0,a0,a1        -> a0 = 21
+	0x00100073, //12: ebreak  
 };
 
 static const uint32_t prog_lui[] = {
 	0x123450b7, // 0: lui ra,0x12345        -> ra = 0x12345 << 12 = 0x12345000
+	0x00100073, // 4: ebreak 
 };
 
 static const uint32_t prog_lw[] = {
 	0x00c00593, //  0: addi a1,zero,12     -> a1 = 12 (数据的字节地址)
 	0x0005a503, //  4: lw   a0,0(a1)        -> a0 = M[12 >> 2] = M[3]
-	0x00800067, //  8: jalr zero,8(zero)    -> 跳回自己, halt
+	0x00100073, //  8: ebreak              -> 程序结束
 	0x12345678, // 12: 数据 (M[3])
 };
 
@@ -64,7 +66,7 @@ static const uint32_t prog_sw[] = {
 	0x0621a223, //  8: sw   x2,100(x3)      -> M[(4 + 100) >> 2] = M[26] = 42
 	0x00000113, // 12: addi x2,zero,0      -> x2 = 0, 证明下面读的确实是内存
 	0x0641a203, // 16: lw   x4,100(x3)     -> x4 = M[26] = 42
-	0x01400067, // 20: jalr zero,20(zero)  -> 跳回自己, halt
+	0x00100073, // 20: ebreak              -> 程序结束
 };
 
 // lbu: 从同一个字里依次取出 4 个字节 
@@ -74,7 +76,7 @@ static const uint32_t prog_lbu[] = {
 	0x0015c603, //  8: lbu  a2,1(a1)        -> a2 = 0x56
 	0x0025c683, // 12: lbu  a3,2(a1)        -> a3 = 0x34
 	0x0035c703, // 16: lbu  a4,3(a1)        -> a4 = 0x12
-	0x01400067, // 20: jalr zero,20(zero)   -> 跳回自己, halt
+	0x00100073, // 20: ebreak               -> 程序结束
 	0x12345678, // 24: 数据 (M[6])
 };
 
@@ -84,7 +86,7 @@ static const uint32_t prog_sb[] = {
 	0x0ab00613, //  4: addi a2,zero,0xab    -> a2 = 0xab (待写入的字节)
 	0x00c580a3, //  8: sb   a2,1(a1)        -> 0x12345678 变成 0x1234AB78
 	0x0005a683, // 12: lw   a3,0(a1)        -> a3 = 0x1234AB78
-	0x01000067, // 16: jalr zero,16(zero)   -> 跳回自己, halt
+	0x00100073, // 16: ebreak               -> 程序结束
 	0x12345678, // 20: 数据 (M[5])
 };
 
@@ -97,7 +99,7 @@ static const test_case_t test_cases[] = {
 	  prog_a0_neg2, ARRAY_LEN(prog_a0_neg2), 4,
 	  { REG(10, 0xfffffffeu), REG_END } },
 
-	{ "jalr: 调用 fun、返回, 最后 halt 死循环 (文档测试程序)",
+	{ "jalr: 调用 fun、返回, 最后执行 ebreak 结束 (文档测试程序)",
 	  prog_jalr_doc, ARRAY_LEN(prog_jalr_doc), 0xc,
 	  { REG(1, 12), REG(10, 30), REG_END } },
 
@@ -152,18 +154,27 @@ static int run_case(const test_case_t *tc)
 	}
 	ref_reset();
 
-	for (int cycle = 0; cycle < MAX_CYCLES; cycle++) {
-		uint32_t pc_before = ref_get_pc();
+	// 终止条件:
+	//   1) 执行 ebreak, 即程序自己声明结束 (见 minirvemu.h 的约定)
+	//   2) PC 前进到程序末尾, 作为没写 ebreak 的短程序的兜底
+	int cycle;
+	for (cycle = 0; cycle < MAX_CYCLES; cycle++) {
+		int ret;
 
-		if (pc_before >= (uint32_t)tc->inst_count * 4)
+		if (ref_get_pc() >= (uint32_t)tc->inst_count * 4)
 			break;
-		if (ref_inst_cycle() < 0) {
+		ret = ref_inst_cycle();
+		if (ret < 0) {
 			printf("         [FAIL] 执行第 %d 条指令时出错, PC=0x%08x\n",
 			       cycle, ref_get_pc());
 			return 1;
 		}
-		if (ref_get_pc() == pc_before) // 跳回自身, 视为程序结束
+		if (ret > 0) // ebreak  
 			break;
+	}
+	if (cycle == MAX_CYCLES) {
+		printf("         [FAIL] 执行 %d 条指令仍未结束, 可能陷入死循环\n", MAX_CYCLES);
+		return 1;
 	}
 
 	R = ref_get_regs();
