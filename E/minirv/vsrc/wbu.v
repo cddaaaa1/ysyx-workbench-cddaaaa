@@ -19,7 +19,7 @@ module wbu(
             WB_ALU: wb_data = alu_result;
             WB_MEM: wb_data = mem_rdata;
             WB_PC4: wb_data = pc + 32'd4;
-            default: wb_data = 32'h0;   // 非法编码: 给个确定值
+            default: wb_data = 32'h0;  
         endcase
 
         // 跳转则取下一条 PC 为目标地址, 否则顺序执行

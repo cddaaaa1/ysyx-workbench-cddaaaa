@@ -11,9 +11,9 @@ module exu(
 	output [31:0] jump_target  // 跳转目标地址
 );
 
-// EXU 只需要区分"操作数 b 用 rs2 还是用立即数"
+	// EXU 只需要区分"操作数 b 用 rs2 还是用立即数"
         // (完整的 ALU 控制码编码见 idu.v 与 alu.v)
-        localparam [3:0] ALU_ADD = 4'd1; // a + b, b 取 rs2 (add)
+    localparam [3:0] ALU_ADD = 4'd1; // a + b, b 取 rs2 (add)
 
 	wire [31:0] alu_b = (alu_op == ALU_ADD) ? rdata2 : imm;
 

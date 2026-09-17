@@ -7,15 +7,18 @@
       "cppStandard": "c++17",
       "intelliSenseMode": "linux-gcc-arm64",
       "includePath": [
+        "/usr/local/share/verilator/include/vltstd",
         "${workspaceFolder}/E/nvboard/usr/include",
         "${workspaceFolder}/E/nvboard/include",
         "${workspaceFolder}/E/nvboard/nju-projects/**",
         "${workspaceFolder}/E/nvboard/nju-projects/**/obj_dir",
         "${workspaceFolder}/E/scpu",
         "${workspaceFolder}/E/scpu/obj_dir",
+        "${workspaceFolder}/E/minirv/obj_dir/**",
         "/usr/include/SDL2",
         "${env:YSYX_VERILATOR_INCLUDE}",
-        "/usr/local/share/verilator/include"
+        "/usr/local/share/verilator/include",
+        "/usr/local/share/verilator/include/vltstd"
       ],
       "defines": [
         "TOP_NAME=Vtop"
@@ -34,9 +37,12 @@
         "${workspaceFolder}/E/nvboard/nju-projects/**/obj_dir",
         "${workspaceFolder}/E/scpu",
         "${workspaceFolder}/E/scpu/obj_dir",
+        "${workspaceFolder}/E/minirv/obj_dir",
+        "${workspaceFolder}/E/minirv",
         "/usr/include/SDL2",
         "${env:YSYX_VERILATOR_INCLUDE}",
-        "/usr/local/share/verilator/include"
+        "/usr/local/share/verilator/include",
+        "/usr/local/share/verilator/include/vltstd"
       ],
       "defines": [
         "TOP_NAME=Vtop"

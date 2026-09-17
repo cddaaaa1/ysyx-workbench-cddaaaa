@@ -49,7 +49,8 @@ SIM_TOP = top
 SIM_TOP_SRC = $(abspath ./vsrc/top.v)
 SIM_VSRCS = $(SIM_TOP_SRC) $(filter-out $(SIM_TOP_SRC), $(VSRCS))
 SIM_CSRC = $(abspath ./csrc/main.cpp)
-SIM_CSRC += $(abspath ../semu/semu.cpp)
+SIM_CSRC += $(abspath ./csrc/pmem.cpp)
+SIM_CSRC += $(abspath ./csrc/minirvemu.cpp)
 SIM_OBJ_DIR = $(OBJ_DIR)
 SIM_BIN = ./build/sim-$(SIM_TOP)
 
@@ -61,7 +62,7 @@ $(SIM_BIN): $(SIM_VSRCS) $(SIM_CSRC)
 	$(VERILATOR) $(VERILATOR_CFLAGS) --trace \
 		--top-module $(SIM_TOP) $(SIM_VSRCS) \
 		--Mdir $(SIM_OBJ_DIR) --exe $(SIM_CSRC) \
-		-CFLAGS "-I$(CURDIR) -DNVBOARD_SIM" -o $(abspath $(SIM_BIN))
+		-CFLAGS "-I$(CURDIR)" -o $(abspath $(SIM_BIN))
 
 sim-run: $(SIM_BIN)
 	@./$(SIM_BIN)
@@ -73,7 +74,7 @@ sim-clean:
 
 # minirvEMU: 纯 C++ 的指令集模拟器, 不依赖 Verilator/NVBoard
 EMU_INC = $(abspath ./csrc)
-EMU_SRCS = $(abspath ./csrc/main.cpp) $(abspath ./csrc/minirvemu.cpp)
+EMU_SRCS = $(abspath ./csrc/emu_main.cpp) $(abspath ./csrc/minirvemu.cpp)
 EMU_HDRS = $(abspath ./csrc/minirvemu.h)
 EMU_BIN = ./build/minirvemu
 
