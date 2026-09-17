@@ -9,12 +9,14 @@
 #include "minirvemu.h"
 #include "pmem.h"
 
-#define PROGRAM_PATH "program/prog_add.hex"
+#define PROGRAM_PATH "program/prog_lui.hex"
 #define MAX_CYCLES 1000
 
 static VerilatedContext *contextp = nullptr;
 static VerilatedVcdC *tfp = nullptr;
 static Vtop *top = nullptr;
+
+static volatile int      g_ebreak_hit = 0;
 
 static void eval_and_dump()
 {
@@ -60,6 +62,11 @@ static int check_pc(const uint32_t dut_pc, const uint32_t ref_pc)
     return 0;
 }
 
+extern "C" void sim_ebreak(int pc)
+{
+    g_ebreak_hit = 1;
+}
+
 int main(int argc, char **argv)
 {
     // REF 与 DUT 必须从同一份程序镜像的起始处开始执行
@@ -99,6 +106,13 @@ int main(int argc, char **argv)
         }
 
         single_cycle();              // DUT 执行一条指令
+
+        if (g_ebreak_hit) {
+            printf("NPC hit ebreak");
+            finished = 1;
+            break;
+        }   
+
         if (ref_inst_cycle() != 0) { // REF 执行同一条指令
             printf("reference stopped on an invalid instruction\n");
             printf("Simulation stop\n");

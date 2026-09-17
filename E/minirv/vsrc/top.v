@@ -1,8 +1,3 @@
-// minirv NPC 顶层: 只负责模块互连
-// 需要例化: pc_reg / gpr (状态) + ifu / idu / exu / lsu / wbu (纯组合)
-//
-// 注意: 接到 gpr 的写使能要屏蔽 x0, 例如
-//   wire rf_we = gpr_we && (waddr != 4'd0);
 module top(
 	input  clk,
 	input  rst,
@@ -25,6 +20,7 @@ module top(
 	wire [4:0]  raddr1, raddr2, waddr;
 	wire        gpr_we;
 	wire [1:0]  wb_sel;
+	wire        is_ebreak;
 
 	// ---- GPR -> EXU / LSU ----
 	wire [31:0] rdata1, rdata2;
@@ -42,6 +38,23 @@ module top(
 
 	// x0 恒为 0: 写 0 号寄存器时把写使能屏蔽掉
 	wire rf_we = gpr_we && (waddr != 5'd0);
+
+
+	// DPI-C: 调用 C++ 侧的 ebreak 处理函数 (名字/签名必须与 csrc/main.cpp 一致)
+	import "DPI-C" function void sim_ebreak (input int pc);
+
+	reg ebreak_r; 
+	always @(posedge clk) begin
+        if (rst) begin
+            ebreak_r <= 1'b0;
+        end
+        else if (is_ebreak && !ebreak_r) begin
+            ebreak_r <= 1'b1;
+            sim_ebreak(pc);         
+        end
+    end
+    assign ebreak = ebreak_r; 
+
 
 	pc_reg u_pc_reg(
 		.clk(clk),
@@ -66,7 +79,7 @@ module top(
 		.alu_op(alu_op),
 		.is_jalr(is_jalr),
 		.lsu_op(lsu_op),
-		.is_ebreak(ebreak)
+		.is_ebreak(is_ebreak)
 	);
 
 	gpr u_gpr(
