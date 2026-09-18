@@ -37,10 +37,19 @@ static inline int32_t imm_s(uint32_t inst) // S 型: inst[31:25] | inst[11:7], 1
 
 static uint32_t PC;
 static uint32_t R[REF_REGISTER_COUNT];
-static uint32_t M[REF_MEMORY_SIZE];
+static uint32_t M[REF_MEM_WORDS];
+
+// 把绝对地址换算成 M 的下标; 越界返回 -1
+static int mem_index(uint32_t vaddr)
+{
+	if (vaddr < REF_MEM_BASE || vaddr - REF_MEM_BASE >= REF_MEM_SIZE)
+		return -1;
+	return (int)((vaddr - REF_MEM_BASE) >> 2);
+}
+
 int ref_load_image(const uint32_t *insts, int count)
 {
-	if (insts == NULL || count <= 0 || count > REF_MEMORY_SIZE) //检查程序长度
+	if (insts == NULL || count <= 0 || (size_t)count > REF_MEM_WORDS) //检查程序长度
 		return -1;
 
 	memset(M, 0, sizeof(M));
@@ -52,30 +61,28 @@ int ref_load_image(const uint32_t *insts, int count)
 
 int ref_load_program(const char *path)
 {
-	FILE *program = fopen(path, "r");
-	uint32_t insts[REF_MEMORY_SIZE];
-	unsigned value;
-	int count = 0;
+	FILE *program = fopen(path, "rb");
 
 	if (program == NULL) {
 		perror(path);
 		return -1;
 	}
 
-	while (count < REF_MEMORY_SIZE && fscanf(program, "%x", &value) == 1) //逐条读取指令
-		insts[count++] = (uint32_t)value;
-
+	memset(M, 0, sizeof(M));
+	size_t size = fread(M, 1, sizeof(M), program); // 镜像内容即从 REF_MEM_BASE 开始的内存
 	fclose(program);
-	if (count == 0) { //检查程序是否为空
+
+	if (size == 0) { //检查程序是否为空
 		fprintf(stderr, "%s: no instruction loaded\n", path);
 		return -1;
 	}
-	return ref_load_image(insts, count);
+	printf("[ref] %s: %u bytes loaded at 0x%08x\n", path, (unsigned)size, REF_MEM_BASE);
+	return (int)size;
 }
 
 void ref_reset(void)
 {
-	PC = 0;
+	PC = REF_MEM_BASE;
 	memset(R, 0, sizeof(R));
 }
 
@@ -85,8 +92,8 @@ void ref_reset(void)
 // 返回 -1: 非法指令或访问越界, 应当中止
 int ref_inst_cycle(void)
 {
-	uint32_t addr = PC >> 2; 
-	if (addr >= REF_MEMORY_SIZE) { // PC 出 M 的范围
+	int addr = mem_index(PC);
+	if (addr < 0) { // PC 出 M 的范围
 		fprintf(stderr, "PC 0x%08x is out of memory range\n", PC);
 		return -1;
 	}
@@ -151,21 +158,23 @@ int ref_inst_cycle(void)
 		switch (funct3) {
 		case FUNCT3_LW: {
 			uint32_t vaddr = R[rs1] + (uint32_t)imm_i(inst);
-			if ((vaddr >> 2) >= REF_MEMORY_SIZE) {
+			int idx = mem_index(vaddr);
+			if (idx < 0) {
 				fprintf(stderr, "lw: address 0x%08x out of memory range\n", vaddr);
 				return -1;
 			}
-			R[rd] = M[vaddr >> 2];
+			R[rd] = M[idx];
 			break;
 		}
 		case FUNCT3_LBU: {
 			uint32_t vaddr = R[rs1] + (uint32_t)imm_i(inst);
-			if ((vaddr >> 2) >= REF_MEMORY_SIZE) {
+			int idx = mem_index(vaddr);
+			if (idx < 0) {
 				fprintf(stderr, "lbu: address 0x%08x out of memory range\n", vaddr);
 				return -1;
 			}
 			// 取出字内第 (vaddr & 0x3) 个字节, 零扩展后写回
-			R[rd] = (M[vaddr >> 2] >> ((vaddr & 0x3) * 8)) & 0xff;
+			R[rd] = (M[idx] >> ((vaddr & 0x3) * 8)) & 0xff;
 			break;
 		}
 		default:
@@ -177,22 +186,24 @@ int ref_inst_cycle(void)
 		switch (funct3) {
 		case FUNCT3_SW: {
 			uint32_t vaddr = R[rs1] + (uint32_t)imm_s(inst); 
-			if ((vaddr >> 2) >= REF_MEMORY_SIZE) {
+			int idx = mem_index(vaddr);
+			if (idx < 0) {
 				fprintf(stderr, "sw: address 0x%08x out of memory range\n", vaddr);
 				return -1;
 			}
-			M[vaddr >> 2] = R[rs2]; 
+			M[idx] = R[rs2]; 
 			break;
 		}
 		case FUNCT3_SB: {
 			uint32_t vaddr = R[rs1] + (uint32_t)imm_s(inst);
-			if ((vaddr >> 2) >= REF_MEMORY_SIZE) {
+			int idx = mem_index(vaddr);
+			if (idx < 0) {
 				fprintf(stderr, "sb: address 0x%08x out of memory range\n", vaddr);
 				return -1;
 			}
 			uint32_t shift = (vaddr & 0x3) * 8; // 目标字节在字内的位偏移
-			M[vaddr >> 2] = (M[vaddr >> 2] & ~(0xffu << shift))
-			              | ((R[rs2] & 0xff) << shift);
+			M[idx] = (M[idx] & ~(0xffu << shift))
+			       | ((R[rs2] & 0xff) << shift);
 			break;
 		}
 		default:

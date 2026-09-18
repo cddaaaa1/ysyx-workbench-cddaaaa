@@ -24,7 +24,8 @@
   ({ reg##_T __io_param = (reg##_T) { __VA_ARGS__ }; \
     ioe_write(reg, &__io_param); })
 
-#define static_assert(const_cond) \
+// 兼容 C11 的 static_assert(cond, msg) 两参用法
+#define static_assert(const_cond, ...) \
   static char CONCAT(_static_assert_, __LINE__) [(const_cond) ? 1 : -1] __attribute__((unused))
 
 #define panic_on(cond, s) \

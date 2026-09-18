@@ -57,6 +57,8 @@ include $(NEMU_HOME)/scripts/config.mk
 
 ifdef CONFIG_TARGET_AM
 include $(AM_HOME)/Makefile
+# AM 的 -Werror 对 NEMU 过严, 例如 panic 宏与 klib 重定义
+CFLAGS := $(filter-out -Werror,$(CFLAGS))
 LINKAGE += $(ARCHIVES)
 else
 # Include rules to build NEMU

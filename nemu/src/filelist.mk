@@ -17,6 +17,8 @@ SRCS-y += src/nemu-main.c
 DIRS-y += src/cpu src/monitor src/utils
 DIRS-$(CONFIG_MODE_SYSTEM) += src/memory
 DIRS-BLACKLIST-$(CONFIG_TARGET_AM) += src/monitor/sdb
+# TARGET_AM 下无法 dlopen, 且 dut.c 依赖宿主 libc 的 dlfcn.h
+DIRS-BLACKLIST-$(CONFIG_TARGET_AM) += src/cpu/difftest
 
 SHARE = $(if $(CONFIG_TARGET_SHARE),1,0)
 LIBS += $(if $(CONFIG_TARGET_NATIVE_ELF),-lreadline -ldl -pie,)

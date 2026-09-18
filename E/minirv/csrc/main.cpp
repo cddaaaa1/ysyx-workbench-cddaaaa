@@ -9,7 +9,7 @@
 #include "minirvemu.h"
 #include "pmem.h"
 
-#define PROGRAM_PATH "program/prog_all.hex"
+#define PROGRAM_PATH "../../am-kernels/tests/cpu-tests/build/wrong-minirv-npc.bin"
 #define MAX_CYCLES 1000
 
 static VerilatedContext *contextp = nullptr;
@@ -93,20 +93,23 @@ int main(int argc, char **argv)
     top = new Vtop{contextp};
     top->trace(tfp, 99);
     tfp->open("dump.vcd");
-    reset(2); // DUT 复位后 PC=0, GPR 全0, 与 ref_reset() 的状态一致
+    reset(2); // DUT 复位后 PC=0x80000000, GPR 全0, 与 ref_reset() 的状态一致
 
     int cycle = 0;
     int finished = 0; 
     int failed = 0;   
 
     for (; cycle < MAX_CYCLES && !contextp->gotFinish(); cycle++) {
-        // 注意: ref_load_program 返回的是程序字数, 而 PC 是字节地址
-        if (ref_get_pc() >= (uint32_t)prog_size * 4) { // 程序执行完毕
+        // prog_size 是镜像的字节数, 程序的地址上界 = 基址 + 大小
+        if (ref_get_pc() >= REF_MEM_BASE + (uint32_t)prog_size) { // 程序执行完毕
             finished = 1;
             break;
         }
 
         single_cycle();              // DUT 执行一条指令
+
+        uint32_t *dut_regs = &top->rootp->top__DOT__u_gpr__DOT__rf[0];
+        uint32_t *ref_regs = ref_get_regs();
 
         if (top->misalign) {
             printf("NPC: lw/sw 地址未对齐, pc=%u\n", static_cast<unsigned>(top->pc));
@@ -116,6 +119,11 @@ int main(int argc, char **argv)
 
         if (g_ebreak_hit) {
             printf("NPC hit ebreak\n");
+            if (dut_regs[10] == 0) {
+                printf("HIT GOOD TRAP\n", cycle);
+            } else {
+                printf("HIT BAD TRAP: a0=%u\n", dut_regs[10]);
+            }
             finished = 1;
             break;
         }   
@@ -127,8 +135,6 @@ int main(int argc, char **argv)
             break;
         }
 
-        uint32_t *dut_regs = &top->rootp->top__DOT__u_gpr__DOT__rf[0];
-        uint32_t *ref_regs = ref_get_regs();
 
         printf("cycle=%d pc=(dut=%u ref=%u) r0=%u r1=%u r2=%u r3=%u a0=%u a1=%u a2=%u a3=%u a4=%u\n",
                cycle, static_cast<unsigned>(top->pc),
@@ -153,7 +159,8 @@ int main(int argc, char **argv)
     if (finished)
         printf("Difftest PASS: %d instructions executed, NPC == minirvEMU\n", cycle);
     else if (!failed)
-        printf("Difftest FAIL: stopped after %d cycles, program did not finish\n", cycle);
+        printf("Difftest: stopped after %d cycles, no ebreak (PC = 0x%08x)\n",
+               cycle, static_cast<unsigned>(top->pc));
 
     top->final();
     tfp->close();
