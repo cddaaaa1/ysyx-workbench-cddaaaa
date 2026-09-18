@@ -1,6 +1,4 @@
 `include "define.vh"
-// WBU (WriteBack Unit): 选出写回 GPR 的数据, 并计算下一条 PC
-// GPR 已独立为 gpr 模块, 由顶层例化; 因此本模块是纯组合逻辑
 module wbu(
         input  [31:0] pc,          // 当前 PC
         input  [1:0]  wb_sel,      // 写回数据来源: ALU / 访存 / PC+4

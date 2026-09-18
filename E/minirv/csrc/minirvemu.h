@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #define REF_MEMORY_SIZE    256
-#define REF_REGISTER_COUNT 16
+#define REF_REGISTER_COUNT 32
 
 // 从文件装入程序镜像, 返回装入的指令条数, 失败时返回 -1
 int ref_load_program(const char *path);

@@ -9,7 +9,7 @@
 #include "minirvemu.h"
 #include "pmem.h"
 
-#define PROGRAM_PATH "program/prog_add.hex"
+#define PROGRAM_PATH "program/prog_all.hex"
 #define MAX_CYCLES 1000
 
 static VerilatedContext *contextp = nullptr;
@@ -46,7 +46,8 @@ static int check_regs(const uint32_t *dut_regs, const uint32_t *ref_regs, int co
 {
     for (int i = 0; i < count; i++) {
         if (dut_regs[i] != ref_regs[i]) {
-            printf("r%d: dut=%u ref=%u\n", i, dut_regs[i], ref_regs[i]);
+            //printf("r%d: dut=%u ref=%u\n", i, dut_regs[i], ref_regs[i]);
+            printf("r%d: dut=0x%08x ref=0x%08x\n", i, dut_regs[i], ref_regs[i]);
             return 1;
         }
     }
@@ -107,6 +108,12 @@ int main(int argc, char **argv)
 
         single_cycle();              // DUT 执行一条指令
 
+        if (top->misalign) {
+            printf("NPC: lw/sw 地址未对齐, pc=%u\n", static_cast<unsigned>(top->pc));
+            failed = 1;
+            break;
+        }
+
         if (g_ebreak_hit) {
             printf("NPC hit ebreak\n");
             finished = 1;
@@ -123,11 +130,11 @@ int main(int argc, char **argv)
         uint32_t *dut_regs = &top->rootp->top__DOT__u_gpr__DOT__rf[0];
         uint32_t *ref_regs = ref_get_regs();
 
-        printf("cycle=%d pc=(dut=%u ref=%u) r0=%u r1=%u r2=%u r3=%u a0=%u a1=%u\n",
+        printf("cycle=%d pc=(dut=%u ref=%u) r0=%u r1=%u r2=%u r3=%u a0=%u a1=%u a2=%u a3=%u a4=%u\n",
                cycle, static_cast<unsigned>(top->pc),
                static_cast<unsigned>(ref_get_pc()),
                dut_regs[0], dut_regs[1], dut_regs[2], dut_regs[3],
-               dut_regs[10], dut_regs[11]);
+               dut_regs[10], dut_regs[11], dut_regs[12], dut_regs[13], dut_regs[14]);
 
         if (check_regs(dut_regs, ref_regs, REF_REGISTER_COUNT)) {
             printf("GPR different\n");

@@ -3,7 +3,8 @@ module top(
 	input  rst,
 	output [31:0] pc,      // 供仿真环境观察: 当前 PC
 	output [31:0] inst,    // 供仿真环境观察: 当前指令
-	output        ebreak   // 程序执行到 ebreak 时置 1, 供仿真环境判断程序结束
+	output        ebreak,  // 程序执行到 ebreak 时置 1, 供仿真环境判断程序结束
+	output        misalign // lw/sw 地址未 4 字节对齐时置 1, 供仿真环境报错
 );
 	// ---- pc_reg <-> 数据通路 ----
 	wire [31:0] next_pc;
@@ -32,6 +33,10 @@ module top(
 
 	// ---- LSU -> WBU ----
 	wire [31:0] mem_rdata;
+
+	// ---- LSU -> 仿真环境 ----
+	wire lsu_misalign;
+	assign misalign = lsu_misalign;
 
 	// ---- WBU -> GPR ----
 	wire [31:0] wb_data;
@@ -108,7 +113,8 @@ module top(
 		.lsu_op(lsu_op),
 		.addr(alu_result),
 		.wdata(rdata2),
-		.rdata(mem_rdata)
+		.rdata(mem_rdata),
+		.lsu_misalign(lsu_misalign)
 	);
 
 	wbu u_wbu(

@@ -1,6 +1,4 @@
 `include "define.vh"
-// EXU (EXecution Unit): 根据控制信号控制 ALU 进行计算, 并计算跳转目标
-// 内部包含 ALU
 module exu(
 	input  [31:0] rdata1,      // rs1 的值, 来自 gpr 读端口
 	input  [31:0] rdata2,      // rs2 的值, 来自 gpr 读端口

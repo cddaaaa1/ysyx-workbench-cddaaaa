@@ -37,7 +37,7 @@ extern "C" void pmem_write(int waddr, int wdata, char wmask)
 	uint32_t addr = (uint32_t)waddr & ~0x3u;
 	if (!addr_valid(addr))
 		return;
-
+	
     if (wmask & 0x1) pmem[addr] = ((uint32_t)wdata & 0xff);
     if (wmask & 0x2) pmem[addr + 1] = ((uint32_t)wdata >> 8) & 0xff;
     if (wmask & 0x4) pmem[addr + 2] = ((uint32_t)wdata >> 16) & 0xff;
