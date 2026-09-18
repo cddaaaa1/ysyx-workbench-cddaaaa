@@ -108,7 +108,7 @@ int main(int argc, char **argv)
         single_cycle();              // DUT 执行一条指令
 
         if (g_ebreak_hit) {
-            printf("NPC hit ebreak");
+            printf("NPC hit ebreak\n");
             finished = 1;
             break;
         }   

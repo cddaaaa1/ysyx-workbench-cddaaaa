@@ -19,6 +19,10 @@ $(SRC_AUTO_BIND): $(NXDC_FILES)
 	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
 
 VSRCS = $(shell find $(abspath ./vsrc) -name "*.v")
+# 共享的 Verilog 头文件: 只参与依赖判断, 不作为源文件传给 verilator
+VHDRS = $(shell find $(abspath ./vsrc/include) -name "*.vh")
+# Verilog `include 的搜索路径, 让各模块能直接写 `include "define.vh"
+VERILATOR_CFLAGS += -I$(abspath ./vsrc/include)
 CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp")
 CSRCS += $(SRC_AUTO_BIND)
 
@@ -27,10 +31,10 @@ include $(NVBOARD_HOME)/scripts/nvboard.mk
 INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
 
-$(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
+$(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE) $(VHDRS)
 	@rm -rf $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_CFLAGS) \
-		--top-module $(TOPNAME) $^ \
+		--top-module $(TOPNAME) $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE) \
 		$(addprefix -CFLAGS , $(CXXFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
 		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
 
@@ -56,7 +60,7 @@ SIM_BIN = ./build/sim-$(SIM_TOP)
 
 sim: $(SIM_BIN)
 
-$(SIM_BIN): $(SIM_VSRCS) $(SIM_CSRC)
+$(SIM_BIN): $(SIM_VSRCS) $(SIM_CSRC) $(VHDRS)
 	@rm -rf $(SIM_OBJ_DIR)
 	@mkdir -p $(dir $(SIM_BIN))
 	$(VERILATOR) $(VERILATOR_CFLAGS) --trace \
