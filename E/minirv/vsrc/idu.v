@@ -21,14 +21,16 @@ module idu(
 );
 
 	localparam [3:0] ALU_ADDI    = 4'd0; // rs1 + imm
+	localparam [3:0] ALU_ADD     = 4'd1; // rs1 + rs2
 	localparam [3:0] ALU_PASS_B  = 4'd2;
-	// 后期再加: ALU_ADD = 4'd1 (add）
+
 	localparam [1:0] WB_ALU = 2'd0; // 运算结果 (add/addi/lui)
     localparam [1:0] WB_MEM = 2'd1; // 访存读出的数据 (lw/lbu)
     localparam [1:0] WB_PC4 = 2'd2; // jalr 的返回地址 pc+4
 	localparam [2:0] LSU_NONE = 3'd0;
 	
 	localparam [6:0] OP_OPIMM  = 7'b0010011;
+	localparam [6:0] OP_R = 7'b0110011; 
 	localparam [6:0] OP_LUI    = 7'b0110111;
 	localparam [31:0] INST_EBREAK = 32'h00100073;
 
@@ -57,6 +59,13 @@ module idu(
 					alu_op = ALU_ADDI;
 					gpr_we = 1'b1;        
 				end 
+				OP_R: begin
+					raddr1 = inst[19:15];
+					raddr2 = inst[24:20];
+					waddr  = inst[11:7];
+					alu_op = ALU_ADD;
+					gpr_we = 1'b1;
+				end
 				OP_LUI: begin 
 					waddr  = inst[11:7];
 					imm    = {inst[31:12], 12'b0};

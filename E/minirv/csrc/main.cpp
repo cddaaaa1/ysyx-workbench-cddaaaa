@@ -9,7 +9,7 @@
 #include "minirvemu.h"
 #include "pmem.h"
 
-#define PROGRAM_PATH "program/prog_lui.hex"
+#define PROGRAM_PATH "program/prog_add.hex"
 #define MAX_CYCLES 1000
 
 static VerilatedContext *contextp = nullptr;

@@ -21,7 +21,7 @@ module wbu(
             WB_PC4: wb_data = pc + 32'd4;
             default: wb_data = 32'h0;  
         endcase
-
+    
         // 跳转则取下一条 PC 为目标地址, 否则顺序执行
         next_pc = jump ? jump_target : (pc + 32'd4);
     end
