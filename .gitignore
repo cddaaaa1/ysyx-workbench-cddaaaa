@@ -19,3 +19,4 @@
 # Generated build directories (keep source and configuration in Git).
 **/build/
 **/obj_dir/
+/riscv-tests

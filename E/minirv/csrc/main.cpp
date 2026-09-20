@@ -9,7 +9,7 @@
 #include "minirvemu.h"
 #include "pmem.h"
 
-#define PROGRAM_PATH "../../am-kernels/tests/cpu-tests/build/wrong-minirv-npc.bin"
+#define PROGRAM_PATH "../../am-kernels/tests/cpu-tests/build/dummy-minirv-npc.bin" // 缺省镜像
 #define MAX_CYCLES 1000
 
 static VerilatedContext *contextp = nullptr;
@@ -70,17 +70,20 @@ extern "C" void sim_ebreak(int pc)
 
 int main(int argc, char **argv)
 {
+    // 镜像路径可由命令行给出, 缺省用 PROGRAM_PATH
+    const char *img = (argc > 1) ? argv[1] : PROGRAM_PATH;
+
     // REF 与 DUT 必须从同一份程序镜像的起始处开始执行
-    int prog_size = ref_load_program(PROGRAM_PATH);
+    int prog_size = ref_load_program(img);
     if (prog_size <= 0) {
-        printf("reference failed to load program from %s\n", PROGRAM_PATH);
+        printf("reference failed to load program from %s\n", img);
         printf("Simulation stop\n");
         return 1;
     }
 
     // DUT 的存储器由 pmem.cpp 实现 (RTL 通过 DPI-C 取指), 必须装入同一份程序镜像
-    if (pmem_load(PROGRAM_PATH) <= 0) {
-        printf("failed to load program into pmem from %s\n", PROGRAM_PATH);
+    if (pmem_load(img) <= 0) {
+        printf("failed to load program into pmem from %s\n", img);
         printf("Simulation stop\n");
         return 1;
     }
@@ -120,11 +123,12 @@ int main(int argc, char **argv)
         if (g_ebreak_hit) {
             printf("NPC hit ebreak\n");
             if (dut_regs[10] == 0) {
-                printf("HIT GOOD TRAP\n", cycle);
+                printf("HIT GOOD TRAP\n");
+                finished = 1;   // 只有 a0 == 0 才算成功结束
             } else {
                 printf("HIT BAD TRAP: a0=%u\n", dut_regs[10]);
+                failed = 1;     // 让 make 拿到非 0 退出码
             }
-            finished = 1;
             break;
         }   
 

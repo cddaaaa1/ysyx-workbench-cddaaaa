@@ -68,8 +68,9 @@ $(SIM_BIN): $(SIM_VSRCS) $(SIM_CSRC) $(VHDRS)
 		--Mdir $(SIM_OBJ_DIR) --exe $(SIM_CSRC) \
 		-CFLAGS "-I$(CURDIR)" -o $(abspath $(SIM_BIN))
 
+# IMG 可由命令行传入指定镜像路径; 为空时用 main.cpp 里的缺省值
 sim-run: $(SIM_BIN)
-	@./$(SIM_BIN)
+	@./$(SIM_BIN) $(IMG)
 
 sim-clean:
 	rm -rf $(SIM_OBJ_DIR) $(SIM_BIN) dump.vcd
