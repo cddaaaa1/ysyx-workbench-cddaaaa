@@ -24,6 +24,8 @@
 #define IMM_ECALL	0x00
 #define IMM_EBREAK	0x01
 
+#define UART_ADDR	0x10000000u // 串口输出寄存器, AM 的 putch 往这里写
+
 static inline int32_t imm_i(uint32_t inst) // I 型: inst[31:20], 12 位有符号数
 {
 	return (int32_t)inst >> 20; 
@@ -186,6 +188,8 @@ int ref_inst_cycle(void)
 		switch (funct3) {
 		case FUNCT3_SW: {
 			uint32_t vaddr = R[rs1] + (uint32_t)imm_s(inst); 
+			if (vaddr == UART_ADDR)
+				break;
 			int idx = mem_index(vaddr);
 			if (idx < 0) {
 				fprintf(stderr, "sw: address 0x%08x out of memory range\n", vaddr);
@@ -196,6 +200,8 @@ int ref_inst_cycle(void)
 		}
 		case FUNCT3_SB: {
 			uint32_t vaddr = R[rs1] + (uint32_t)imm_s(inst);
+			if (vaddr == UART_ADDR) // 同上: 串口访问忽略
+				break;
 			int idx = mem_index(vaddr);
 			if (idx < 0) {
 				fprintf(stderr, "sb: address 0x%08x out of memory range\n", vaddr);

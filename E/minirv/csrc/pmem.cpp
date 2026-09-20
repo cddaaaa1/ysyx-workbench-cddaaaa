@@ -3,6 +3,8 @@
 #include <string.h>
 #include "pmem.h"
 
+#define UART_ADDR 0x10000000u // 串口输出寄存器, AM 的 putch 往这里写
+
 static uint8_t pmem[PMEM_SIZE];
 
 // 检查 [addr, addr+4) 是否落在 pmem 范围内 (addr 为绝对地址)
@@ -39,6 +41,11 @@ extern "C" int pmem_read(int raddr)
 // `wmask`中每比特表示`wdata`中1个字节的掩码
 extern "C" void pmem_write(int waddr, int wdata, char wmask)
 {
+	if (waddr == UART_ADDR) {  // 写入UART
+		fputc(wdata & 0xff, stderr);   // 在stdio.h中定义
+		return;
+	}
+
 	uint32_t addr = (uint32_t)waddr & ~0x3u ;
 	if (!addr_valid(addr))
 		return;

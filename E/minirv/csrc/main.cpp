@@ -10,7 +10,7 @@
 #include "pmem.h"
 
 #define PROGRAM_PATH "../../am-kernels/tests/cpu-tests/build/dummy-minirv-npc.bin" // 缺省镜像
-#define MAX_CYCLES 50000
+#define MAX_CYCLES 1e8
 
 static VerilatedContext *contextp = nullptr;
 static VerilatedVcdC *tfp = nullptr;

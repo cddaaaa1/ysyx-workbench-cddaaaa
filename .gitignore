@@ -20,3 +20,4 @@
 **/build/
 **/obj_dir/
 /riscv-tests
+/archbench
