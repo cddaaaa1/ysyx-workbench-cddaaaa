@@ -10,7 +10,7 @@
 #include "pmem.h"
 
 #define PROGRAM_PATH "../../am-kernels/tests/cpu-tests/build/dummy-minirv-npc.bin" // 缺省镜像
-#define MAX_CYCLES 1000
+#define MAX_CYCLES 50000
 
 static VerilatedContext *contextp = nullptr;
 static VerilatedVcdC *tfp = nullptr;
@@ -103,11 +103,6 @@ int main(int argc, char **argv)
     int failed = 0;   
 
     for (; cycle < MAX_CYCLES && !contextp->gotFinish(); cycle++) {
-        // prog_size 是镜像的字节数, 程序的地址上界 = 基址 + 大小
-        if (ref_get_pc() >= REF_MEM_BASE + (uint32_t)prog_size) { // 程序执行完毕
-            finished = 1;
-            break;
-        }
 
         single_cycle();              // DUT 执行一条指令
 
@@ -140,14 +135,16 @@ int main(int argc, char **argv)
         }
 
 
-        printf("cycle=%d pc=(dut=%u ref=%u) r0=%u r1=%u r2=%u r3=%u a0=%u a1=%u a2=%u a3=%u a4=%u\n",
-               cycle, static_cast<unsigned>(top->pc),
-               static_cast<unsigned>(ref_get_pc()),
-               dut_regs[0], dut_regs[1], dut_regs[2], dut_regs[3],
-               dut_regs[10], dut_regs[11], dut_regs[12], dut_regs[13], dut_regs[14]);
+        // printf("cycle=%d pc=(dut=%u ref=%u) r0=%u r1=%u r2=%u r3=%u a0=%u a1=%u a2=%u a3=%u a4=%u\n",
+        //        cycle, static_cast<unsigned>(top->pc),
+        //        static_cast<unsigned>(ref_get_pc()),
+        //        dut_regs[0], dut_regs[1], dut_regs[2], dut_regs[3],
+        //        dut_regs[10], dut_regs[11], dut_regs[12], dut_regs[13], dut_regs[14]);
 
         if (check_regs(dut_regs, ref_regs, REF_REGISTER_COUNT)) {
-            printf("GPR different\n");
+            printf("pc = 0x%08x, inst = 0x%08x\n"
+                   "GPR different\n",
+                   static_cast<unsigned>(top->pc), static_cast<unsigned>(top->inst));
             printf("Simulation stop\n");
             failed = 1;
             break;

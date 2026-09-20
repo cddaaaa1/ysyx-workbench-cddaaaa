@@ -8,7 +8,10 @@ static uint8_t pmem[PMEM_SIZE];
 // 检查 [addr, addr+4) 是否落在 pmem 范围内 (addr 为绝对地址)
 static int addr_valid(uint32_t addr)
 {
-	if (addr < PMEM_BASE || addr >= PMEM_BASE + PMEM_SIZE) {
+	// 低于基址: 复位期间 DUT 会拿一个未就绪的 pc 去取指(读到 0), 这类访问直接忽略
+	if (addr < PMEM_BASE)
+		return 0;
+	if (addr >= PMEM_BASE + PMEM_SIZE) {
 		fprintf(stderr, "[pmem] access out of range: 0x%08x (base = 0x%08x, size = 0x%x)\n",
 		        addr, PMEM_BASE, PMEM_SIZE);
 		return 0;
