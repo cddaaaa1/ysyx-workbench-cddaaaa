@@ -1,4 +1,5 @@
 #include "minirvemu.h"
+#include "pmem.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -25,6 +26,9 @@
 #define IMM_EBREAK	0x01
 
 #define UART_ADDR	0x10000000u // 串口输出寄存器, AM 的 putch 往这里写
+#define UART_STATUS_ADDR 0x10000004u // UART 状态寄存器
+#define RTC_ADDR    0x20000000u // 时钟低 32 位
+#define RTC_ADDR_HI 0x20000004u // 时钟高 32 位
 
 static inline int32_t imm_i(uint32_t inst) // I 型: inst[31:20], 12 位有符号数
 {
@@ -60,6 +64,7 @@ int ref_load_image(const uint32_t *insts, int count)
 
 	return count;
 }
+
 
 int ref_load_program(const char *path)
 {
@@ -160,6 +165,14 @@ int ref_inst_cycle(void)
 		switch (funct3) {
 		case FUNCT3_LW: {
 			uint32_t vaddr = R[rs1] + (uint32_t)imm_i(inst);
+			if (vaddr == RTC_ADDR) {      // 设备: 取 DUT 刚读到的值
+				R[rd] = pmem_rtc_lo();
+				break;
+			}
+			if (vaddr == RTC_ADDR_HI) {
+				R[rd] = pmem_rtc_hi();
+				break;
+			}
 			int idx = mem_index(vaddr);
 			if (idx < 0) {
 				fprintf(stderr, "lw: address 0x%08x out of memory range\n", vaddr);
@@ -170,6 +183,12 @@ int ref_inst_cycle(void)
 		}
 		case FUNCT3_LBU: {
 			uint32_t vaddr = R[rs1] + (uint32_t)imm_i(inst);
+
+			if (vaddr == UART_STATUS_ADDR) {      // 设备: 取 DUT 刚读到的值
+				R[rd] = pmem_uart_status();
+				break;
+			}
+
 			int idx = mem_index(vaddr);
 			if (idx < 0) {
 				fprintf(stderr, "lbu: address 0x%08x out of memory range\n", vaddr);

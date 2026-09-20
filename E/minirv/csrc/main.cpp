@@ -126,6 +126,7 @@ int main(int argc, char **argv)
             }
             break;
         }   
+        
 
         if (ref_inst_cycle() != 0) { // REF 执行同一条指令
             printf("reference stopped on an invalid instruction\n");

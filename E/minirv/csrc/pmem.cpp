@@ -1,11 +1,33 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "pmem.h"
+#include "sys/time.h"
 
 #define UART_ADDR 0x10000000u // 串口输出寄存器, AM 的 putch 往这里写
+#define UART_STATUS_ADDR 0x10000004u
+
 
 static uint8_t pmem[PMEM_SIZE];
+
+// 设备读出值的暂存: DUT 读设备时写入, 参考模型通过下面的 getter 读取
+static uint32_t g_uart_status = 0;
+static uint32_t g_rtc_lo = 0, g_rtc_hi = 0;
+
+uint32_t pmem_uart_status(void) { return g_uart_status; }
+uint32_t pmem_rtc_lo(void) { return g_rtc_lo; }
+uint32_t pmem_rtc_hi(void) { return g_rtc_hi; }
+
+static uint64_t get_time_us() {
+    static uint64_t start = 0;
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    uint64_t now = (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+    if (start == 0)
+        start = now;      
+    return now - start;
+}
 
 // 检查 [addr, addr+4) 是否落在 pmem 范围内 (addr 为绝对地址)
 static int addr_valid(uint32_t addr)
@@ -25,6 +47,19 @@ static int addr_valid(uint32_t addr)
 extern "C" int pmem_read(int raddr)
 {
 	uint32_t addr = (uint32_t)raddr & ~0x3u; // 只支持按 4 字节对齐的读
+	if (raddr == UART_STATUS_ADDR) {
+        g_uart_status = (rand() & 0x7) == 0 ? 1 : 0;
+        return g_uart_status;
+    }
+	else if (raddr == 0x20000000) {
+            g_rtc_lo = (uint32_t)(get_time_us() & 0xffffffff);
+            return g_rtc_lo;
+    }
+    else if (raddr == 0x20000004) { 
+            g_rtc_hi = (uint32_t)(get_time_us() >> 32);
+            return g_rtc_hi;
+    }
+
 	if (!addr_valid(addr))
 		return 0;
 
