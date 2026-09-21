@@ -49,8 +49,8 @@ clean:
 .PHONY: default all clean run
 
 # Pure Verilator simulation.
-SIM_TOP = top
-SIM_TOP_SRC = $(abspath ./vsrc/top.v)
+SIM_TOP = sim_top
+SIM_TOP_SRC = $(abspath ./vsrc/sim_top.v)
 SIM_VSRCS = $(SIM_TOP_SRC) $(filter-out $(SIM_TOP_SRC), $(VSRCS))
 SIM_CSRC = $(abspath ./csrc/main.cpp)
 SIM_CSRC += $(abspath ./csrc/pmem.cpp)

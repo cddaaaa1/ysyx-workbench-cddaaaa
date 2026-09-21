@@ -3,8 +3,17 @@ module top(
 	input  rst,
 	output [31:0] pc,      // 供仿真环境观察: 当前 PC
 	output [31:0] inst,    // 供仿真环境观察: 当前指令
-	output        ebreak,  // 程序执行到 ebreak 时置 1, 供仿真环境判断程序结束
-	output        misalign // lw/sw 地址未 4 字节对齐时置 1, 供仿真环境报错
+	output        ebreak,  // 程序执行到 ebreak 时置 1, 供仿真环境判断程序结束  
+	output        misalign, // lw/sw 地址未 4 字节对齐时置 1, 供仿真环境报错
+	
+	output [31:0] imem_addr, 
+	input  [31:0] imem_rdata,
+	output [31:0] dmem_addr,
+	output [31:0] dmem_wdata,
+	output [3:0]  dmem_wmask,
+	output        dmem_re,
+	output        dmem_we,
+	input  [31:0] dmem_rdata
 );
 	// ---- pc_reg <-> 数据通路 ----
 	wire [31:0] next_pc;
@@ -45,20 +54,16 @@ module top(
 	wire rf_we = gpr_we && (waddr != 5'd0);
 
 
-	// DPI-C: 调用 C++ 侧的 ebreak 处理函数 (名字/签名必须与 csrc/main.cpp 一致)
-	import "DPI-C" function void sim_ebreak (input int pc);
-
 	reg ebreak_r; 
 	always @(posedge clk) begin
-        if (rst) begin
-            ebreak_r <= 1'b0;
-        end
-        else if (is_ebreak && !ebreak_r) begin
-            ebreak_r <= 1'b1;
-            sim_ebreak(pc);         
-        end
-    end
-    assign ebreak = ebreak_r; 
+		if (rst) begin
+			ebreak_r <= 1'b0;
+		end
+		else if (is_ebreak && !ebreak_r) begin
+			ebreak_r <= 1'b1;
+		end
+	end
+	assign ebreak = ebreak_r; 
 
 
 	pc_reg u_pc_reg(
@@ -70,7 +75,9 @@ module top(
 
 	ifu u_ifu(
 		.pc(pc),
-		.inst(inst)
+		.inst(inst),
+		.imem_addr(imem_addr),
+		.imem_rdata(imem_rdata)
 	);
 
 	idu u_idu(
@@ -113,8 +120,14 @@ module top(
 		.lsu_op(lsu_op),
 		.addr(alu_result),
 		.wdata(rdata2),
+		.dmem_rdata(dmem_rdata),
 		.rdata(mem_rdata),
-		.lsu_misalign(lsu_misalign)
+		.lsu_misalign(lsu_misalign),
+		.dmem_addr(dmem_addr),
+		.dmem_wdata(dmem_wdata),
+		.dmem_wmask(dmem_wmask),
+		.dmem_re(dmem_re),
+		.dmem_we(dmem_we)
 	);
 
 	wbu u_wbu(

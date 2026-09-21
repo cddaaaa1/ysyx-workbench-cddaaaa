@@ -4,8 +4,8 @@
 
 #include "verilated.h"
 #include "verilated_vcd_c.h"
-#include "../obj_dir/Vtop.h"
-#include "../obj_dir/Vtop___024root.h" // 访问 rootp 内部的 GPR 需要该类型的完整定义
+#include "../obj_dir/Vsim_top.h"
+#include "../obj_dir/Vsim_top___024root.h" // 访问 rootp 内部的 GPR 需要该类型的完整定义
 #include "minirvemu.h"
 #include "pmem.h"
 
@@ -14,9 +14,7 @@
 
 static VerilatedContext *contextp = nullptr;
 static VerilatedVcdC *tfp = nullptr;
-static Vtop *top = nullptr;
-
-static volatile int      g_ebreak_hit = 0;
+static Vsim_top *top = nullptr;
 
 unsigned long long sim_cycle = 0; // 已仿真的周期数, 供外设把周期换算成时间
 
@@ -24,7 +22,7 @@ static void eval_and_dump()
 {
     top->eval();
     contextp->timeInc(1);
-    tfp->dump(contextp->time());
+    if (tfp) tfp->dump(contextp->time());
 }
 
 static void single_cycle()
@@ -65,11 +63,6 @@ static int check_pc(const uint32_t dut_pc, const uint32_t ref_pc)
     return 0;
 }
 
-extern "C" void sim_ebreak(int pc)
-{
-    g_ebreak_hit = 1;
-}
-
 int main(int argc, char **argv)
 {
     // 镜像路径可由命令行给出, 缺省用 PROGRAM_PATH
@@ -83,7 +76,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // DUT 的存储器由 pmem.cpp 实现 (RTL 通过 DPI-C 取指), 必须装入同一份程序镜像
+    // DUT 的存储器由 pmem.cpp 实现, 经 dpic_mem 通过 DPI-C 访问, 必须装入同一份程序镜像
     if (pmem_load(img) <= 0) {
         printf("failed to load program into pmem from %s\n", img);
         printf("Simulation stop\n");
@@ -93,11 +86,17 @@ int main(int argc, char **argv)
 
     contextp = new VerilatedContext;
     contextp->commandArgs(argc, argv);
-    contextp->traceEverOn(true);
-    tfp = new VerilatedVcdC;
-    top = new Vtop{contextp};
-    top->trace(tfp, 99);
-    tfp->open("dump.vcd");
+    top = new Vsim_top{contextp};
+
+    // 默认不产生波形: train 跑满会写出几十 G 的 dump.vcd; 设 NPC_TRACE=<文件> 才开启
+    const char *vcd = getenv("NPC_TRACE");
+    if (vcd != nullptr && *vcd != '\0') {
+        const char *depth = getenv("NPC_TRACE_DEPTH");
+        contextp->traceEverOn(true);
+        tfp = new VerilatedVcdC;
+        top->trace(tfp, depth ? atoi(depth) : 1); // 默认只追踪顶层端口
+        tfp->open(vcd);
+    }
     reset(2); // DUT 复位后 PC=0x80000000, GPR 全0, 与 ref_reset() 的状态一致
 
     int cycle = 0;
@@ -109,7 +108,7 @@ int main(int argc, char **argv)
         sim_cycle = cycle;
         single_cycle();              // DUT 执行一条指令
 
-        uint32_t *dut_regs = &top->rootp->top__DOT__u_gpr__DOT__rf[0];
+        uint32_t *dut_regs = &top->rootp->sim_top__DOT__u_top__DOT__u_gpr__DOT__rf[0];
         uint32_t *ref_regs = ref_get_regs();
 
         if (top->misalign) {
@@ -118,7 +117,7 @@ int main(int argc, char **argv)
             break;
         }
 
-        if (g_ebreak_hit) {
+        if (top->ebreak) {
             printf("NPC hit ebreak\n");
             if (dut_regs[10] == 0) {
                 printf("HIT GOOD TRAP\n");
@@ -168,9 +167,11 @@ int main(int argc, char **argv)
                cycle, static_cast<unsigned>(top->pc));
 
     top->final();
-    tfp->close();
+    if (tfp) {
+        tfp->close();
+        delete tfp;
+    }
     delete top;
-    delete tfp;
     delete contextp;
     return finished ? 0 : 1;
 }

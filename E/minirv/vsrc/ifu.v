@@ -3,11 +3,11 @@
 
 module ifu(
         input  [31:0] pc,        // 来自 pc_reg: 当前 PC
-        output [31:0] inst       // 送给 IDU
+        input  [31:0] imem_rdata,
+        output [31:0] inst,       // 送给 IDU
+        output [31:0] imem_addr
 );
 
-    // DPI-C: 调用 C++ 侧的存储器模型 (名字/签名必须与 csrc/pmem.cpp 一致)
-    import "DPI-C" function int pmem_read (input int raddr);
-
-    assign inst = pmem_read(pc);
+    assign imem_addr = pc; 
+    assign inst = imem_rdata;
 endmodule
