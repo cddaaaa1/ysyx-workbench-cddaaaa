@@ -63,23 +63,37 @@
           - RTL 的 LW 命中 0x20000000 / 0x20000004 时, pmem_read 依次记录 g_rtc_lo / g_rtc_hi
           - minirvEMU 的 FUNCT3_LW 分支用 pmem_rtc_lo() / pmem_rtc_hi() 取回同一份值
         - 验证: cd am-kernels/tests/am-tests && make ARCH=minirv-npc run mainargs=t, 程序每经过 1 秒就输出一句话
-    4. benchmark 
+    4. benchmark 输出时间或分数
         - microbench: Scored time: 3681.424 ms Total  time: 5081.065 ms
         - dhrystone: Finished in 8 ms
         - mainarg=test: Total time (ms)  : 24057
 ### 运行红白机游戏
     1. 实现字符模式运行fceux-am 
 
-### 性能测试
-    1. 
+### 通过EDA工具评估NPC的频率
+    1. 配置ECC, PDK , yosys 
+    2. 对流水灯进行综合评估 ecc run --project light 
+    3. 将对存储器的DPI-C访问移动到NPC外部
+    4. 评估NPC的综合频率：400MHZ
+
+### 性能测试 archbench 
+    1. bash run-am.sh ARCH=minirv-npc mainargs=test 通过
+    2. bash run-am.sh ARCH=minirv-npc mainargs=train nproc=4：
+        ARCH      = minirv-npc
+        mainargs  = train
+        benchlist = 11 个能编译: 100.blockchain 101.igemm 102.queen 103.dinic 104.malloc
+                        105.bf 106.qsort 107.stream 108.ntt 200.genann 203.rsa 
+        RTC 频率   = 400 MHz  (E/minirv/csrc/pmem.cpp 的 NPC_FREQ_HZ)
+        GEOMEAN   = 589 Marks   MEAN = 1629 
 
 ### 其他
-
 
 ## TODO 
 1. 存储器表示: REF(minirvEMU) 按字存 (`uint32_t M[]`, 字节访问靠移位+掩码),
    NPC 侧 pmem 按字节存 (`uint8_t pmem[]`, 字访问靠拼接)。对外接口都是 32 位字 + `wmask` 字节掩码, 语义等价;
 2. 过一遍minirv代码 + 批量运行程序
 3. 学习 Chisel 
+4. archbench 现在只能跑通 11/20 
+
 
 ## 进行中： 让仿真环境输出程序结束信息 （Hit bad trap 在看一遍）
