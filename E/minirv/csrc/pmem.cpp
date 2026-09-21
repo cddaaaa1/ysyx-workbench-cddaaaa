@@ -7,7 +7,7 @@
 #define UART_ADDR 0x10000000u // 串口输出寄存器, AM 的 putch 往这里写
 #define UART_STATUS_ADDR 0x10000004u
 
-#define NPC_FREQ_HZ 1e8 // NPC 工作频率(Hz)
+#define NPC_FREQ_HZ 4e8 // NPC 工作频率(Hz)
 
 extern unsigned long long sim_cycle; // 由仿真环境维护的已仿真周期数
 
