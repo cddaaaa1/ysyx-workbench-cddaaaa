@@ -18,6 +18,8 @@ static Vtop *top = nullptr;
 
 static volatile int      g_ebreak_hit = 0;
 
+unsigned long long sim_cycle = 0; // 已仿真的周期数, 供外设把周期换算成时间
+
 static void eval_and_dump()
 {
     top->eval();
@@ -102,8 +104,9 @@ int main(int argc, char **argv)
     int finished = 0; 
     int failed = 0;   
 
-    for (; cycle < MAX_CYCLES && !contextp->gotFinish(); cycle++) {
-
+    //for (; cycle < MAX_CYCLES && !contextp->gotFinish(); cycle++) {
+    for (; !contextp->gotFinish(); cycle++) { // 无 MAX_CYCLES 限制
+        sim_cycle = cycle;
         single_cycle();              // DUT 执行一条指令
 
         uint32_t *dut_regs = &top->rootp->top__DOT__u_gpr__DOT__rf[0];

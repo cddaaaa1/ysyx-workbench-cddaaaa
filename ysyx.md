@@ -45,7 +45,7 @@
         pmem.cpp: waddr == UART_ADDR → fputc('A', stderr)
           ↓
         终端上出现 A
-        (MMIO 的本质: 与"往存储器写一个字节"没有区别, 只是地址落在设备区间)
+        MMIO 的本质: 往存储器设备区写一个字节
     2. 为UART添加状态寄存器 (0x10000004)
         - AM 侧 (trm.c putch): 读 0x10000004 忙等
         - 行为模型 (pmem.cpp pmem_read): raddr == 0x10000004 → (rand() & 0x7) == 0 ? 1 : 0
@@ -62,13 +62,16 @@
         - DiffTest: 
           - RTL 的 LW 命中 0x20000000 / 0x20000004 时, pmem_read 依次记录 g_rtc_lo / g_rtc_hi
           - minirvEMU 的 FUNCT3_LW 分支用 pmem_rtc_lo() / pmem_rtc_hi() 取回同一份值
-        - 验证: cd am-kernels/tests/am-tests && make ARCH=minirv-npc run mainargs=t 实现正确的话, 程序每经过 1 秒就输出一句话
+        - 验证: cd am-kernels/tests/am-tests && make ARCH=minirv-npc run mainargs=t, 程序每经过 1 秒就输出一句话
     4. benchmark 
         - microbench: Scored time: 3681.424 ms Total  time: 5081.065 ms
         - dhrystone: Finished in 8 ms
         - mainarg=test: Total time (ms)  : 24057
 ### 运行红白机游戏
-  
+    1. 实现字符模式运行fceux-am 
+
+### 性能测试
+    1. 
 
 ### 其他
 

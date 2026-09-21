@@ -3,10 +3,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include "pmem.h"
-#include "sys/time.h"
 
 #define UART_ADDR 0x10000000u // 串口输出寄存器, AM 的 putch 往这里写
 #define UART_STATUS_ADDR 0x10000004u
+
+#define NPC_FREQ_HZ 1e8 // NPC 工作频率(Hz)
+
+extern unsigned long long sim_cycle; // 由仿真环境维护的已仿真周期数
 
 
 static uint8_t pmem[PMEM_SIZE];
@@ -20,13 +23,7 @@ uint32_t pmem_rtc_lo(void) { return g_rtc_lo; }
 uint32_t pmem_rtc_hi(void) { return g_rtc_hi; }
 
 static uint64_t get_time_us() {
-    static uint64_t start = 0;
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    uint64_t now = (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
-    if (start == 0)
-        start = now;      
-    return now - start;
+    return (uint64_t)(sim_cycle / NPC_FREQ_HZ * 1000000.0);
 }
 
 // 检查 [addr, addr+4) 是否落在 pmem 范围内 (addr 为绝对地址)
