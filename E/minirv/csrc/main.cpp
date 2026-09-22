@@ -113,8 +113,11 @@ int main(int argc, char **argv)
     }
     reset(2); // DUT 复位后 PC=0x80000000, GPR 全0, 与 ref_reset() 的状态一致
 
-    int cycle = 0;
-    int inst_count = 0; // 已执行完毕的指令数, 用于测量 IPC
+    // 必须用 64 位: 32 位只能装 21.5 亿周期 = 400MHz 下 5.37 秒访客时间,
+    // 而 llama2 这类长程序有几十亿周期; 溢出不仅使统计打印成负数,
+    // 还会通过 sim_cycle 把 RTC(0x20000000) 的绝对值带偏
+    unsigned long long cycle = 0;
+    long long inst_count = 0; // 已执行完毕的指令数, 用于测量 IPC
     int finished = 0; 
     int failed = 0;   
 
@@ -183,10 +186,10 @@ int main(int argc, char **argv)
     }
 
     if (finished)
-        printf("Difftest PASS: %d instructions executed in %d cycles (IPC = %.2f), NPC == minirvEMU\n",
-               inst_count, cycle + 1, (double)inst_count / (cycle + 1));
+        printf("Difftest PASS: %lld instructions executed in %llu cycles (IPC = %.2f), NPC == minirvEMU\n",
+               inst_count, cycle + 1, (double)inst_count / (double)(cycle + 1));
     else if (!failed)
-        printf("Difftest: stopped after %d cycles, %d instructions executed, no ebreak (PC = 0x%08x)\n",
+        printf("Difftest: stopped after %llu cycles, %lld instructions executed, no ebreak (PC = 0x%08x)\n",
                cycle + 1, inst_count, static_cast<unsigned>(top->pc));
 
     top->final();
