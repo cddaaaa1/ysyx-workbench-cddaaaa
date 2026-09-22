@@ -32,4 +32,8 @@
 `define FUNCT3_SB  3'b000
 
 `define INST_EBREAK 32'h00100073
+
+// ---- IFU 取指状态机 ----
+`define IFU_IDLE 1'b0
+`define IFU_WAIT 1'b1
 `endif

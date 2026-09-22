@@ -69,6 +69,7 @@ $(SIM_BIN): $(SIM_VSRCS) $(SIM_CSRC) $(VHDRS)
 		-CFLAGS "-I$(CURDIR)" -o $(abspath $(SIM_BIN))
 
 # IMG 可由命令行传入指定镜像路径; 为空时用 main.cpp 里的缺省值
+# NPC_TRACE=dump.vcd ./build/sim-sim_top program/prog_add.bin
 sim-run: $(SIM_BIN)
 	@./$(SIM_BIN) $(IMG)
 

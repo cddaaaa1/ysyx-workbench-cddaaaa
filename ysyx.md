@@ -86,6 +86,37 @@
         RTC 频率   = 400 MHz  (E/minirv/csrc/pmem.cpp 的 NPC_FREQ_HZ)
         GEOMEAN   = 589 Marks   MEAN = 1629 
 
+### E6 支持SimpleBus的IFU
+1. RTL 侧
+    - ifu.v: 加 idle / wait 两态状态机
+      - idle: 把 pc 作为 ifu_raddr 发给存储器, 下一拍进 wait
+      - wait: 存储器返回的 ifu_rdata 有效, 交给后续模块译码执行, 下一拍回 idle
+      - 组合输出 ifu_valid = (state == WAIT), 顶层用它屏蔽非取指周期的状态更新
+      - 关键: wait 期间 pc 保持不变, 于是同一个地址连发两拍, rdata 正好在 wait 那拍与 raddr 对上
+    - pc_reg.v: 加写使能 we, 只有 ifu_valid 那拍才更新 PC
+    - dpic_mem.v: 取指那一路改成寄存读, 实现 1 周期读延迟;
+      数据访问那一路暂时仍是组合读 (LSU 留到下一节再改)
+    - top.v: 用 ifu_valid 门控所有状态更新, 否则 idle 拍会拿上一个地址的旧数据当真去译码
+      - rf_we = gpr_we && (waddr != 0) && ifu_valid; pc_we = ifu_valid
+      - ebreak 的置位条件加上 ifu_valid
+      - lsu 新增 valid 端口, 无效周期不产生任何访存
+      - misalign 寄存一拍: 它是组合值, wait 之后立刻回 0, 不寄存仿真环境就看不到
+2. DiffTest 适配: 把检查时机改成"只有一条指令执行结束才检查"
+    - 一开始用顶层端口方案: top.v 把 ifu_valid 寄存一拍成 inst_valid 端口给 C++ 轮询
+    - 后来改成 DPI-C import: ifu.v 里 import "DPI-C" function void sim_retire(input int pc, input int inst),
+      在 state 从 WAIT 跳走的那一拍调用 (即指令退休、GPR/PC 提交的同一时刻); C++ 侧
+      extern "C" void sim_retire(...) 只置一个 g_retired 标志, 主循环 if (!g_retired) continue;
+      这样 top 的端口列表里就不再有为仿真需求而加的 inst_valid 了
+    - 回调参数 (pc, inst) 是唯一"同源"的一对快照: 检查时 top->pc 已前进到下一条指令,
+      而 top->inst 还停在退休那条, 所以出错打印要用回调存下来的 g_retire_pc / g_retire_inst
+3. IPC 测量
+    - 周期数 = 仿真环境 single_cycle() 的计数; 指令数 = 退休回调的次数
+    - dummy: 17 条 / 34 周期; hello: 17858 条 / 35716 周期, 均为 IPC = 0.50 (2 拍/指令)
+4. 验证
+    - ALL=dummy / hello run → HIT GOOD TRAP + PASS; ALL=wrong run → HIT BAD TRAP + FAIL
+    - prog_add: a0 = 21 (addi a0,zero,20 + add a0,a0,a1)
+    - 波形: ![prog_add 的 SimpleBus 取指时序](pic/prog_add-waveform.png)
+
 ### 其他
 
 ## TODO 
@@ -93,7 +124,4 @@
    NPC 侧 pmem 按字节存 (`uint8_t pmem[]`, 字访问靠拼接)。对外接口都是 32 位字 + `wmask` 字节掩码, 语义等价;
 2. 过一遍minirv代码 + 批量运行程序
 3. 学习 Chisel 
-4. archbench 现在只能跑通 11/20 
-
-
-## 进行中： 让仿真环境输出程序结束信息 （Hit bad trap 在看一遍）
+4. archbench 现在只能跑通 11/21,其余十个有编译问题 

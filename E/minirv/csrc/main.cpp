@@ -18,6 +18,20 @@ static Vsim_top *top = nullptr;
 
 unsigned long long sim_cycle = 0; // 已仿真的周期数, 供外设把周期换算成时间
 
+// RTL 在每条指令退休的那一刻通过 DPI-C 回调这里, 告诉仿真环境
+// "现在有一条指令执行完了, 可以推进 REF 并检查 DiffTest 了"
+// 回调参数是这条退休指令的地址和编码: 只有在这一刻 pc 和 inst 才是同源的
+// (检查时 top->pc 已经前进到下一条, 而 top->inst 还停在退休的这条)
+static bool g_retired = false;
+static uint32_t g_retire_pc = 0, g_retire_inst = 0;
+
+extern "C" void sim_retire(int pc, int inst)
+{
+    g_retire_pc   = static_cast<uint32_t>(pc);
+    g_retire_inst = static_cast<uint32_t>(inst);
+    g_retired = true;
+}
+
 static void eval_and_dump()
 {
     top->eval();
@@ -100,22 +114,30 @@ int main(int argc, char **argv)
     reset(2); // DUT 复位后 PC=0x80000000, GPR 全0, 与 ref_reset() 的状态一致
 
     int cycle = 0;
+    int inst_count = 0; // 已执行完毕的指令数, 用于测量 IPC
     int finished = 0; 
     int failed = 0;   
 
     //for (; cycle < MAX_CYCLES && !contextp->gotFinish(); cycle++) {
     for (; !contextp->gotFinish(); cycle++) { // 无 MAX_CYCLES 限制
         sim_cycle = cycle;
-        single_cycle();              // DUT 执行一条指令
-
-        uint32_t *dut_regs = &top->rootp->sim_top__DOT__u_top__DOT__u_gpr__DOT__rf[0];
-        uint32_t *ref_regs = ref_get_regs();
+        g_retired = false;
+        single_cycle();              // DUT 走一个周期
 
         if (top->misalign) {
             printf("NPC: lw/sw 地址未对齐, pc=%u\n", static_cast<unsigned>(top->pc));
             failed = 1;
             break;
         }
+
+        // 取指占两拍, 并非每个周期都有指令执行结束;
+        // RTL 只在指令退休时回调 sim_retire, 没收到回调就不能推进 REF
+        if (!g_retired)
+            continue;
+
+        inst_count++;
+        uint32_t *dut_regs = &top->rootp->sim_top__DOT__u_top__DOT__u_gpr__DOT__rf[0];
+        uint32_t *ref_regs = ref_get_regs();
 
         if (top->ebreak) {
             printf("NPC hit ebreak\n");
@@ -147,7 +169,7 @@ int main(int argc, char **argv)
         if (check_regs(dut_regs, ref_regs, REF_REGISTER_COUNT)) {
             printf("pc = 0x%08x, inst = 0x%08x\n"
                    "GPR different\n",
-                   static_cast<unsigned>(top->pc), static_cast<unsigned>(top->inst));
+                   static_cast<unsigned>(g_retire_pc), static_cast<unsigned>(g_retire_inst));
             printf("Simulation stop\n");
             failed = 1;
             break;
@@ -161,10 +183,11 @@ int main(int argc, char **argv)
     }
 
     if (finished)
-        printf("Difftest PASS: %d instructions executed, NPC == minirvEMU\n", cycle);
+        printf("Difftest PASS: %d instructions executed in %d cycles (IPC = %.2f), NPC == minirvEMU\n",
+               inst_count, cycle + 1, (double)inst_count / (cycle + 1));
     else if (!failed)
-        printf("Difftest: stopped after %d cycles, no ebreak (PC = 0x%08x)\n",
-               cycle, static_cast<unsigned>(top->pc));
+        printf("Difftest: stopped after %d cycles, %d instructions executed, no ebreak (PC = 0x%08x)\n",
+               cycle + 1, inst_count, static_cast<unsigned>(top->pc));
 
     top->final();
     if (tfp) {

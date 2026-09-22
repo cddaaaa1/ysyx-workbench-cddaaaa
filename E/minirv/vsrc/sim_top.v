@@ -7,8 +7,8 @@ module sim_top (
     output misalign
 );  
 
-    wire [31:0] imem_addr;
-    wire [31:0] imem_rdata;
+    wire [31:0] ifu_raddr;
+    wire [31:0] ifu_rdata;
     wire [31:0] dmem_addr;
     wire [31:0] dmem_wdata;
     wire [3:0]  dmem_wmask;
@@ -23,8 +23,8 @@ module sim_top (
         .inst(inst), 
         .ebreak(ebreak), 
         .misalign(misalign), 
-        .imem_addr(imem_addr), 
-        .imem_rdata(imem_rdata), 
+        .ifu_raddr(ifu_raddr), 
+        .ifu_rdata(ifu_rdata), 
         .dmem_addr(dmem_addr), 
         .dmem_wdata(dmem_wdata), 
         .dmem_wmask(dmem_wmask), 
@@ -35,8 +35,8 @@ module sim_top (
 
     dpic_mem u_dpic_mem (
         .clk(clk), 
-        .imem_addr(imem_addr), 
-        .imem_rdata(imem_rdata), 
+        .ifu_raddr(ifu_raddr), 
+        .ifu_rdata(ifu_rdata), 
         .dmem_addr(dmem_addr), 
         .dmem_wdata(dmem_wdata), 
         .dmem_wmask(dmem_wmask), 

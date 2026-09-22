@@ -3,11 +3,11 @@ module top(
 	input  rst,
 	output [31:0] pc,      // 供仿真环境观察: 当前 PC
 	output [31:0] inst,    // 供仿真环境观察: 当前指令
-	output        ebreak,  // 程序执行到 ebreak 时置 1, 供仿真环境判断程序结束  
-	output        misalign, // lw/sw 地址未 4 字节对齐时置 1, 供仿真环境报错
+	output reg    ebreak,  // 程序执行到 ebreak 时置 1, 供仿真环境判断程序结束  
+	output reg    misalign, // lw/sw 地址未 4 字节对齐时置 1, 供仿真环境报错
 	
-	output [31:0] imem_addr, 
-	input  [31:0] imem_rdata,
+	output [31:0] ifu_raddr,
+	input  [31:0] ifu_rdata,
 	output [31:0] dmem_addr,
 	output [31:0] dmem_wdata,
 	output [3:0]  dmem_wmask,
@@ -17,6 +17,10 @@ module top(
 );
 	// ---- pc_reg <-> 数据通路 ----
 	wire [31:0] next_pc;
+	wire        pc_we;
+
+	// ---- IFU ----
+	wire        ifu_valid; // 本拍 IFU 给出的 inst 是有效指令
 
 	// ---- IDU -> EXU ----
 	wire [31:0] imm;
@@ -45,39 +49,47 @@ module top(
 
 	// ---- LSU -> 仿真环境 ----
 	wire lsu_misalign;
-	assign misalign = lsu_misalign;
 
 	// ---- WBU -> GPR ----
 	wire [31:0] wb_data;
 
+	// 取指占两拍, 只有 ifu_valid 的周期才真正有一条指令在执行;
+	// 否则 idu 会拿 IFU 里的旧信息去译码, 必须屏蔽掉所有状态更新
 	// x0 恒为 0: 写 0 号寄存器时把写使能屏蔽掉
-	wire rf_we = gpr_we && (waddr != 5'd0);
+	wire rf_we = gpr_we && (waddr != 5'd0) && ifu_valid;
+	wire pc_we = ifu_valid;
 
+	always @(posedge clk) begin
+		if (rst) misalign <= 1'b0;
+		else     misalign <= lsu_misalign; // lsu_misalign 已按 ifu_valid 屏蔽
+	end
 
-	reg ebreak_r; 
 	always @(posedge clk) begin
 		if (rst) begin
-			ebreak_r <= 1'b0;
+			ebreak <= 1'b0;
 		end
-		else if (is_ebreak && !ebreak_r) begin
-			ebreak_r <= 1'b1;
+		else if (is_ebreak && ifu_valid && !ebreak) begin
+			ebreak <= 1'b1;
 		end
 	end
-	assign ebreak = ebreak_r; 
 
 
 	pc_reg u_pc_reg(
 		.clk(clk),
 		.rst(rst),
+		.we(pc_we),
 		.next_pc(next_pc),
 		.pc(pc)
 	);
 
 	ifu u_ifu(
+		.clk(clk),
+		.rst(rst),
 		.pc(pc),
 		.inst(inst),
-		.imem_addr(imem_addr),
-		.imem_rdata(imem_rdata)
+		.ifu_valid(ifu_valid),
+		.ifu_raddr(ifu_raddr),
+		.ifu_rdata(ifu_rdata)
 	);
 
 	idu u_idu(
@@ -117,6 +129,7 @@ module top(
 	);
 
 	lsu u_lsu(
+		.valid(ifu_valid),
 		.lsu_op(lsu_op),
 		.addr(alu_result),
 		.wdata(rdata2),
