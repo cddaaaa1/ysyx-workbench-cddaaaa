@@ -1,3 +1,4 @@
+`include "define.vh"
 module top(
 	input  clk,
 	input  rst,
@@ -8,12 +9,12 @@ module top(
 	
 	output [31:0] ifu_raddr,
 	input  [31:0] ifu_rdata,
-	output [31:0] dmem_addr,
-	output [31:0] dmem_wdata,
-	output [3:0]  dmem_wmask,
-	output        dmem_re,
-	output        dmem_we,
-	input  [31:0] dmem_rdata
+	output [31:0] lsu_addr,
+	output [31:0] lsu_wdata,
+	output [3:0]  lsu_wmask,
+	output        lsu_re,
+	output        lsu_wen,
+	input  [31:0] lsu_rdata
 );
 	// ---- pc_reg <-> 数据通路 ----
 	wire [31:0] next_pc;
@@ -21,6 +22,9 @@ module top(
 
 	// ---- IFU ----
 	wire        ifu_valid; // 本拍 IFU 给出的 inst 是有效指令
+
+	// ---- LSU ----
+	wire        lsu_busy;  // LSU 正在等存储器返回数据(load 多花的那一拍)
 
 	// ---- IDU -> EXU ----
 	wire [31:0] imm;
@@ -53,11 +57,17 @@ module top(
 	// ---- WBU -> GPR ----
 	wire [31:0] wb_data;
 
-	// 取指占两拍, 只有 ifu_valid 的周期才真正有一条指令在执行;
+	// 一条指令真正执行完毕(可以提交/退休)的那一拍:
+	//   - 非 load 指令: IFU 的 wait 拍
+	//   - load 指令:   还要再等一拍, LSU 才把读出的数据送回来
+	wire inst_is_load = (lsu_op == `LSU_LW) || (lsu_op == `LSU_LBU);
+	wire commit = (ifu_valid && !inst_is_load) || lsu_busy;
+
+	// 只有 commit 的周期才真正有一条指令执行完毕;
 	// 否则 idu 会拿 IFU 里的旧信息去译码, 必须屏蔽掉所有状态更新
 	// x0 恒为 0: 写 0 号寄存器时把写使能屏蔽掉
-	wire rf_we = gpr_we && (waddr != 5'd0) && ifu_valid;
-	wire pc_we = ifu_valid;
+	wire rf_we = gpr_we && (waddr != 5'd0) && commit;
+	wire pc_we = commit;
 
 	always @(posedge clk) begin
 		if (rst) misalign <= 1'b0;
@@ -68,9 +78,15 @@ module top(
 		if (rst) begin
 			ebreak <= 1'b0;
 		end
-		else if (is_ebreak && ifu_valid && !ebreak) begin
+		else if (is_ebreak && commit && !ebreak) begin
 			ebreak <= 1'b1;
 		end
+	end
+
+	// 指令退休时通过 DPI-C 通知仿真环境; 此刻 pc / inst 仍是退休那条指令的
+	import "DPI-C" function void sim_retire(input int pc, input int inst);
+	always @(posedge clk) begin
+		if (commit) sim_retire(pc, inst);
 	end
 
 
@@ -87,6 +103,7 @@ module top(
 		.rst(rst),
 		.pc(pc),
 		.inst(inst),
+		.lsu_busy(lsu_busy),
 		.ifu_valid(ifu_valid),
 		.ifu_raddr(ifu_raddr),
 		.ifu_rdata(ifu_rdata)
@@ -129,18 +146,21 @@ module top(
 	);
 
 	lsu u_lsu(
+		.clk(clk),
+		.rst(rst),
 		.valid(ifu_valid),
 		.lsu_op(lsu_op),
 		.addr(alu_result),
 		.wdata(rdata2),
-		.dmem_rdata(dmem_rdata),
+		.lsu_rdata(lsu_rdata),
 		.rdata(mem_rdata),
+		.lsu_busy(lsu_busy),
 		.lsu_misalign(lsu_misalign),
-		.dmem_addr(dmem_addr),
-		.dmem_wdata(dmem_wdata),
-		.dmem_wmask(dmem_wmask),
-		.dmem_re(dmem_re),
-		.dmem_we(dmem_we)
+		.lsu_addr(lsu_addr),
+		.lsu_wdata(lsu_wdata),
+		.lsu_wmask(lsu_wmask),
+		.lsu_re(lsu_re),
+		.lsu_wen(lsu_wen)
 	);
 
 	wbu u_wbu(

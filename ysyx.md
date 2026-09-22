@@ -118,12 +118,36 @@
     - prog_add: a0 = 21 (addi a0,zero,20 + add a0,a0,a1)
     - 波形: ![prog_add 的 SimpleBus 取指时序](pic/prog_add-waveform.png)
 5. 性能测试： 
-    - archbench-train: 
+    - archbench-train:  不包括 303.cproc
         | 日期 | commit | ARCH | mainargs | 成功/总数 | GEOMEAN | MEAN | 备注 |
         |---|---|---|---|---:|---:|---:|---|
-        | 2026-09-22 14:23 | 6e6b6fe* | minirv-npc | train | 19/20 | 279 | 770 | 支持 SimpleBus 的 IFU-修改计数器溢出 |
+        | 2026-09-22 14:23 | 6e6b6fe* | minirv-npc | train | 19/20 | 279 | 770 | 计数器改 64 位后复测 (RTL 同上一行, 分数一致) |
 
-### 
+### E6 支持SimpleBus的LSU
+1. RTL 侧
+    - dpic_mem.v: 数据那一路也改成寄存读, 和取指统一成"读延迟一拍、写在发请求那拍完成"
+    - lsu.v: 
+      - 加 SimpleBus 请求接口 `lsu_addr` / `lsu_wdata` / `lsu_wmask` /`lsu_re` / `lsu_wen`, 只在发请求那拍有效
+      - `wait_data`: 发读请求的下一拍拉高, 表示还在等数据, load 因此多花一个周期; 对外输出 `lsu_busy = wait_data`
+      - `rdata` 直接从 `lsu_rdata` 选字 / 选字节: 等数据那拍 IFU 还停在同一指令上(pc 未推进),
+        `lsu_op` / `addr` 仍有效; sb 的字节处理靠 `wdata << (addr[1:0] * 8)` + `4'h1 << addr[1:0]`
+    - ifu.v: 加 `lsu_busy` 输入, 等 load 期间停在 IDLE 不发新的取指请求
+    - top.v: `commit = (ifu_valid && !inst_is_load) || lsu_busy` (load 推迟到等数据那拍退休);
+      `pc_we = commit`, `rf_we = gpr_we && (waddr != 0) && commit`
+2. DiffTest 适配: 把退休回调 `sim_retire(pc, inst)` 的条件从 ifu_valid 换成 commit 即可
+3. 时序 (prog_sb): 
+    - 波形: ![prog_sb 的 SimpleBus 访存时序](pic/prog_sb-waveform.png)
+4. 验证
+    - riscv-tests `TEST_ISA=i`: 76 PASS / 0 FAIL; cpu-tests 全 PASS (`wrong` 按设计应 FAIL)
+    - ALL=dummy / hello → HIT GOOD TRAP + PASS; ALL=wrong → HIT BAD TRAP + FAIL
+    - prog_sb: a3 = 0x1234ab78 + Difftest PASS (原程序用的是基址 0 的地址, 跑时先 `lui`+`addi` 搭基址)
+    - 越界访问警告: 修好地址门控前 13 个 → 修好后 0 个
+    - IPC: add 4273 条 / 9624 周期 = 0.44
+5. 性能测试
+    - archbench-train: 不包括 303.cproc
+        | 日期 | commit | ARCH | mainargs | 成功/总数 | GEOMEAN | MEAN | 备注 |
+        |---|---|---|---|---:|---:|---:|---|
+        | 2026-09-22 17:47 | 82e13c8* | minirv-npc | train | 19/20 | 239 | 662 | 支持simplebus的lsu |
 
 ### 其他
 

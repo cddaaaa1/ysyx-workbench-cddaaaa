@@ -9,12 +9,12 @@ module sim_top (
 
     wire [31:0] ifu_raddr;
     wire [31:0] ifu_rdata;
-    wire [31:0] dmem_addr;
-    wire [31:0] dmem_wdata;
-    wire [3:0]  dmem_wmask;
-    wire        dmem_re;
-    wire        dmem_we;
-    wire [31:0] dmem_rdata;
+    wire [31:0] lsu_addr;
+    wire [31:0] lsu_wdata;
+    wire [3:0]  lsu_wmask;
+    wire        lsu_re;
+    wire        lsu_wen;
+    wire [31:0] lsu_rdata;
 
     top u_top (
         .clk(clk), 
@@ -25,24 +25,24 @@ module sim_top (
         .misalign(misalign), 
         .ifu_raddr(ifu_raddr), 
         .ifu_rdata(ifu_rdata), 
-        .dmem_addr(dmem_addr), 
-        .dmem_wdata(dmem_wdata), 
-        .dmem_wmask(dmem_wmask), 
-        .dmem_re(dmem_re), 
-        .dmem_we(dmem_we), 
-        .dmem_rdata(dmem_rdata)
+        .lsu_addr(lsu_addr), 
+        .lsu_wdata(lsu_wdata), 
+        .lsu_wmask(lsu_wmask), 
+        .lsu_re(lsu_re), 
+        .lsu_wen(lsu_wen), 
+        .lsu_rdata(lsu_rdata)
     );
 
     dpic_mem u_dpic_mem (
         .clk(clk), 
         .ifu_raddr(ifu_raddr), 
         .ifu_rdata(ifu_rdata), 
-        .dmem_addr(dmem_addr), 
-        .dmem_wdata(dmem_wdata), 
-        .dmem_wmask(dmem_wmask), 
-        .dmem_re(dmem_re), 
-        .dmem_we(dmem_we), 
-        .dmem_rdata(dmem_rdata)
+        .lsu_addr(lsu_addr), 
+        .lsu_wdata(lsu_wdata), 
+        .lsu_wmask(lsu_wmask), 
+        .lsu_re(lsu_re), 
+        .lsu_wen(lsu_wen), 
+        .lsu_rdata(lsu_rdata)
     );
 
 
