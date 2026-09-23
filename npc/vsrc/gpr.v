@@ -1,6 +1,6 @@
 // RV32I: 32 个 32 位通用寄存器, 2 读 1 写
 // x0 恒为 0: 读侧在 assign 里处理, 写侧由外部屏蔽 wen (waddr != 0)
-module gpr #(ADDR_WIDTH = 5, DATA_WIDTH = 32) (
+module ysyx_22040000_gpr #(ADDR_WIDTH = 5, DATA_WIDTH = 32) (
   input clk,
   input [DATA_WIDTH-1:0] wdata,
   input [ADDR_WIDTH-1:0] waddr,

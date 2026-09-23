@@ -202,6 +202,14 @@
 2. 验证： 
    - riscv-tests `TEST_ISA=i` 76 PASS / 0 FAIL; cpu-tests 全 PASS; hello / dummy → HIT GOOD TRAP + Difftest PASS
    - prog_sb: 6 instructions executed in 44 cycles (IPC = 0.14)
+
+### ysyxSoc 
+1. 接入Soc
+   - 按规范修改NPC顶层接口/修改verilator 的编译设置/修改仿真的cpp文件
+   - 验证：触发了flash_read()中的assert(0)错误
+
+2. 运行hello 程序
+   
 ### 其他
 
 ## TODO 
@@ -211,3 +219,5 @@
 - 学习 Chisel 
 - ~~archbench 现在只能跑通 11/21,其余十个有编译问题 （ai 修了~~
 - archbench 303 无结果： 303.cproc 是编译器，启动就必须 fopen("input/train-Block.i") 读源文件，而 minirv-npc 平台上 FILE 这一层不可用（klib 是预编译且混淆的 fileio.o，本地没有 fileio.c 源码），于是 AM Panic: unsupport FILE → halt(1) → HIT BAD TRAP: a0=1，程序没跑到打印 [RESULT] 就结束了，所以记 0 分、显示"无结果"。
+- ebreak 改回 DPI-c 
+- Difftest 在加入系统总线后就没有更新了

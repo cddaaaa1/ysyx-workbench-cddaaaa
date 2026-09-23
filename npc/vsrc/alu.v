@@ -1,5 +1,5 @@
 `include "define.vh"
-module alu #(DATA_WIDTH = 32) (
+module ysyx_22040000_alu #(DATA_WIDTH = 32) (
     input  [DATA_WIDTH-1:0]     a,
     input  [DATA_WIDTH-1:0]     b,
     input  [3:0]                op,

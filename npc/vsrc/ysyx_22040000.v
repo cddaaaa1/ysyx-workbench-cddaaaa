@@ -2,7 +2,7 @@
 // CPU 顶层. 端口的方向 / 命名 / 位宽完全按
 // ysyxSoC/ready-to-run/minirv/cpu-interface.md 的规范: clock / reset + SimpleBus
 // pc / inst / ebreak / misalign 只给仿真环境看, 不再是端口, 由 sim_top 用层次引用读
-module top(
+module ysyx_22040000(
 	input  clock,
 	input  reset,
 	output        io_ifu_reqValid,
@@ -92,7 +92,7 @@ module top(
 	end
 
 
-	pc_reg u_pc_reg(
+	ysyx_22040000_pc_reg u_pc_reg(
 		.clk(clock),
 		.rst(reset),
 		.we(pc_we),
@@ -100,7 +100,7 @@ module top(
 		.pc(pc)
 	);
 
-	ifu u_ifu(
+	ysyx_22040000_ifu u_ifu(
 		.clk(clock),
 		.rst(reset),
 		.pc(pc),
@@ -113,7 +113,7 @@ module top(
 		.ifu_rdata(io_ifu_rdata)
 	);
 
-	idu u_idu(
+	ysyx_22040000_idu u_idu(
 		.inst(inst),
 		.raddr1(raddr1),
 		.raddr2(raddr2),
@@ -127,7 +127,7 @@ module top(
 		.is_ebreak(is_ebreak)
 	);
 
-	gpr u_gpr(
+	ysyx_22040000_gpr u_gpr(
 		.clk(clock),
 		.wdata(wb_data),
 		.waddr(waddr),
@@ -138,7 +138,7 @@ module top(
 		.rdata2(rdata2)
 	);
 
-	exu u_exu(
+	ysyx_22040000_exu u_exu(
 		.rdata1(rdata1),
 		.rdata2(rdata2),
 		.imm(imm),
@@ -149,7 +149,7 @@ module top(
 		.jump_target(jump_target)
 	);
 
-	lsu u_lsu(
+	ysyx_22040000_lsu u_lsu(
 		.clk(clock),
 		.rst(reset),
 		.valid(ifu_valid),
@@ -169,7 +169,7 @@ module top(
 		.lsu_respValid(io_lsu_respValid)
 	);
 
-	wbu u_wbu(
+	ysyx_22040000_wbu u_wbu(
 		.pc(pc),
 		.wb_sel(wb_sel),
 		.alu_result(alu_result),

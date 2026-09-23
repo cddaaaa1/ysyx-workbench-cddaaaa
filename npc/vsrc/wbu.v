@@ -1,5 +1,5 @@
 `include "define.vh"
-module wbu(
+module ysyx_22040000_wbu(
         input  [31:0] pc,          // 当前 PC
         input  [1:0]  wb_sel,      // 写回数据来源: ALU / 访存 / PC+4
         input  [31:0] alu_result,  // 来自 EXU

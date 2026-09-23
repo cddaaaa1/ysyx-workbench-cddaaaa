@@ -4,7 +4,7 @@
 //   wait: 存储器返回的指令有效, 交给后续模块译码执行, 下一拍回 idle
 // 注: 指令何时退休由顶层判断(load 还要等 LSU 拿回数据), 不在这里回调
 `include "define.vh"
-module ifu(
+module ysyx_22040000_ifu(
         input  clk,
         input  rst,
         input  [31:0] pc,         // 来自 pc_reg: 当前 PC

@@ -1,5 +1,5 @@
 `include "define.vh"
-module exu(
+module ysyx_22040000_exu(
 	input  [31:0] rdata1,      // rs1 的值, 来自 gpr 读端口
 	input  [31:0] rdata2,      // rs2 的值, 来自 gpr 读端口
 	input  [31:0] imm,         // 立即数, 来自 IDU
@@ -12,7 +12,7 @@ module exu(
 
 	wire [31:0] alu_b = (alu_op == `ALU_ADD) ? rdata2 : imm;
 
-	alu u_alu(
+	ysyx_22040000_alu u_alu(
 		.a(rdata1),
 		.b(alu_b),
 		.op(alu_op),

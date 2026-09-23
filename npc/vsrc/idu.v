@@ -1,5 +1,5 @@
 `include "define.vh"
-module idu(
+module ysyx_22040000_idu(
 	input  [31:0] inst,      // 当前指令
 	output reg   [4:0]  raddr1,    // rs1 = inst[19:15]
 	output reg   [4:0]  raddr2,    // rs2 = inst[24:20]

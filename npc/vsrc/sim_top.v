@@ -27,7 +27,7 @@ module sim_top (
     wire        lsu_respValid;
 
     // CPU 顶层端口严格按 cpu-interface.md 命名, 这里一一对应地连出来
-    top u_top (
+    ysyx_22040000 u_cpu (
         .clock(clk), 
         .reset(rst), 
         .io_ifu_addr(ifu_addr), 
@@ -45,10 +45,10 @@ module sim_top (
     );
 
     // 观察信号: 用层次引用从 CPU 内部读, 这样 CPU 端口不必为仿真多长几个出来
-    assign pc       = u_top.pc;
-    assign inst     = u_top.inst;
-    assign ebreak   = u_top.ebreak;
-    assign misalign = u_top.misalign;
+    assign pc       = u_cpu.pc;
+    assign inst     = u_cpu.inst;
+    assign ebreak   = u_cpu.ebreak;
+    assign misalign = u_cpu.misalign;
 
     dpic_mem u_dpic_mem (
         .clk(clk), 

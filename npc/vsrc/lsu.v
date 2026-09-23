@@ -3,7 +3,7 @@
 //   wait_data=0: 本拍是 IFU 的 wait 拍, 把地址/写数据发给存储器
 //   wait_data=1: 存储器返回的 lsu_rdata 有效, 交给 WBU 写回寄存器
 `include "define.vh"
-module lsu(
+module ysyx_22040000_lsu(
         input         clk,
         input         rst,
         input         valid,       // 本拍 inst 有效(IFU 的 wait 拍), 即发出访存请求
@@ -34,7 +34,7 @@ module lsu(
         else                         state <= lsu_respValid ? `LSU_IDLE : `LSU_WAIT;
     end
 
-    assign lsu_reqValid = (state == `LSU_IDLE) && (is_load || is_store);  // 单拍脉冲
+    assign lsu_reqValid = (state == `LSU_IDLE) && is_mem;  // 单拍脉冲
     assign lsu_busy     = (state == `LSU_WAIT);  
 
     assign lsu_addr  = is_mem ? addr : 32'h0;
