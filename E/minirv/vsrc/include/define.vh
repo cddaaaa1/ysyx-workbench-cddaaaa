@@ -36,4 +36,6 @@
 // ---- IFU 取指状态机 ----
 `define IFU_IDLE 1'b0
 `define IFU_WAIT 1'b1
+`define LSU_IDLE 1'b0
+`define LSU_WAIT 1'b1
 `endif

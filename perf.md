@@ -10,6 +10,14 @@ bash run.sh ARCH=minirv-npc mainargs=train      # 跑评测, 结果落在 archbe
 python3 record.py -w --note "备注"              # 刷新本文件的表格
 ```
 
+
+```sh
+cd E/minirv
+./build/sim-sim_top program/prog_sb.bin
+NPC_TRACE=prog_sb.vcd NPC_TRACE_DEPTH=99 ./build/sim-sim_top program/prog_sb.bin   # 顺带 dump 波形
+```
+
+
 <!-- archbench:start -->
 ### 汇总
 

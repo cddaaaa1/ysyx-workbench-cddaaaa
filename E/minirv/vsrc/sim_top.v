@@ -15,6 +15,10 @@ module sim_top (
     wire        lsu_re;
     wire        lsu_wen;
     wire [31:0] lsu_rdata;
+    wire        ifu_reqValid;
+    wire        ifu_respValid;
+    wire        lsu_reqValid;
+    wire        lsu_respValid;
 
     top u_top (
         .clk(clk), 
@@ -24,24 +28,32 @@ module sim_top (
         .ebreak(ebreak), 
         .misalign(misalign), 
         .ifu_raddr(ifu_raddr), 
+        .ifu_reqValid(ifu_reqValid), 
+        .ifu_respValid(ifu_respValid), 
         .ifu_rdata(ifu_rdata), 
         .lsu_addr(lsu_addr), 
         .lsu_wdata(lsu_wdata), 
         .lsu_wmask(lsu_wmask), 
         .lsu_re(lsu_re), 
         .lsu_wen(lsu_wen), 
+        .lsu_reqValid(lsu_reqValid), 
+        .lsu_respValid(lsu_respValid), 
         .lsu_rdata(lsu_rdata)
     );
 
     dpic_mem u_dpic_mem (
         .clk(clk), 
         .ifu_raddr(ifu_raddr), 
+        .ifu_reqValid(ifu_reqValid), 
+        .ifu_respValid(ifu_respValid), 
         .ifu_rdata(ifu_rdata), 
         .lsu_addr(lsu_addr), 
         .lsu_wdata(lsu_wdata), 
         .lsu_wmask(lsu_wmask), 
         .lsu_re(lsu_re), 
         .lsu_wen(lsu_wen), 
+        .lsu_reqValid(lsu_reqValid), 
+        .lsu_respValid(lsu_respValid), 
         .lsu_rdata(lsu_rdata)
     );
 

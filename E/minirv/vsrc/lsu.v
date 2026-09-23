@@ -18,25 +18,24 @@ module lsu(
         output [31:0] lsu_wdata,
         output [3:0]  lsu_wmask,
         output        lsu_re,
-        output        lsu_wen
-);
+        output        lsu_wen,
+        output        lsu_reqValid,
+        input         lsu_respValid
+);  
+    reg state;
+
     wire is_load  = valid && (lsu_op == `LSU_LW || lsu_op == `LSU_LBU);
     wire is_store = valid && (lsu_op == `LSU_SW || lsu_op == `LSU_SB);
 
-    // 发出读请求后, 下一拍等存储器把数据送回来
-    reg wait_data;
     always @(posedge clk) begin
-        if (rst) wait_data <= 1'b0;
-        else     wait_data <= is_load;
+        if (rst) state <= `LSU_IDLE;
+        else if (state == `LSU_IDLE) state <= is_load ? `LSU_WAIT : `LSU_IDLE;
+        else                         state <= lsu_respValid ? `LSU_IDLE : `LSU_WAIT;
     end
-    assign lsu_busy = wait_data;
 
-    // 地址/控制/写数据只在真正发起访存请求时才有效, 其余周期给 0。
-    // 注意这里必须用 is_load/is_store 而不是 valid:
-    //   存储器模型里的 pmem_read 是 DPI-C 调用, Verilator 会把它从三元表达式
-    //   `lsu_re ? pmem_read(lsu_addr) : 0` 里提出来无条件执行。若只在取指的 wait 拍
-    //   (valid=1)才屏蔽地址, 那么执行非访存指令时也会把 ALU 的结果(对它们来说是
-    //   无意义的中间值, 比如 -32768 / -4)当地址送出去, 造成一堆无效的越界访问。
+    assign lsu_reqValid = (state == `LSU_IDLE) && (is_load || is_store);  // 单拍脉冲
+    assign lsu_busy     = (state == `LSU_WAIT);  
+
     assign lsu_addr  = (is_load || is_store) ? addr : 32'h0;
     assign lsu_re    = is_load;
     assign lsu_wen   = is_store;
@@ -44,15 +43,9 @@ module lsu(
     assign lsu_wmask = (lsu_op == `LSU_SB) ? (4'h1 << addr[1:0])
                      : (lsu_op == `LSU_SW) ? 4'hf : 4'h0;
 
-    // 送给 WBU 的数据: 只有 load 才真的用存储器数据。
-    // 存储器把读数据寄存了一拍(见 dpic_mem.v), 所以 lsu_busy 拉高那拍 lsu_rdata
-    // 已经有效; 此时 IFU 还停在同一条指令上(pc 没推进), lsu_op / addr 依然有效,
-    // 可以直接拿来选字/选字节。
     assign rdata = (lsu_op == `LSU_LW)  ? lsu_rdata
                  : (lsu_op == `LSU_LBU) ? ((lsu_rdata >> (addr[1:0] * 8)) & 32'hff)
                  : 32'h0;
 
-    // lw/sw 要求 4 字节对齐, lbu/sb 可用任意字节地址
     assign lsu_misalign = valid && (lsu_op == `LSU_LW || lsu_op == `LSU_SW) && (addr[1:0] != 2'b0);
-
 endmodule

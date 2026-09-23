@@ -8,12 +8,16 @@ module top(
 	output reg    misalign, // lw/sw 地址未 4 字节对齐时置 1, 供仿真环境报错
 	
 	output [31:0] ifu_raddr,
+	output        ifu_reqValid,
+	input         ifu_respValid,
 	input  [31:0] ifu_rdata,
 	output [31:0] lsu_addr,
 	output [31:0] lsu_wdata,
 	output [3:0]  lsu_wmask,
 	output        lsu_re,
 	output        lsu_wen,
+	output        lsu_reqValid,
+	input         lsu_respValid,
 	input  [31:0] lsu_rdata
 );
 	// ---- pc_reg <-> 数据通路 ----
@@ -106,6 +110,8 @@ module top(
 		.lsu_busy(lsu_busy),
 		.ifu_valid(ifu_valid),
 		.ifu_raddr(ifu_raddr),
+		.ifu_reqValid(ifu_reqValid),
+		.ifu_respValid(ifu_respValid),
 		.ifu_rdata(ifu_rdata)
 	);
 
@@ -160,7 +166,9 @@ module top(
 		.lsu_wdata(lsu_wdata),
 		.lsu_wmask(lsu_wmask),
 		.lsu_re(lsu_re),
-		.lsu_wen(lsu_wen)
+		.lsu_wen(lsu_wen),
+		.lsu_reqValid(lsu_reqValid),
+		.lsu_respValid(lsu_respValid)
 	);
 
 	wbu u_wbu(

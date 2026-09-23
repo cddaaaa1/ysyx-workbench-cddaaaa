@@ -136,7 +136,16 @@
       `pc_we = commit`, `rf_we = gpr_we && (waddr != 0) && commit`
 2. DiffTest 适配: 把退休回调 `sim_retire(pc, inst)` 的条件从 ifu_valid 换成 commit 即可
 3. 时序 (prog_sb): 
-    - 波形: ![prog_sb 的 SimpleBus 访存时序](pic/prog_sb-waveform.png)
+    ```text
+    +0x00  lui  a1, 0x80000      ← a1 = 0x80000000
+    +0x04  addi a1, a1, 24       ← a1 = 0x80000018 (数据的字节地址)
+    +0x08  addi a2, zero, 0xab   ← a2 = 0xab
+    +0x0c  sb   a2, 1(a1)        ← 0x12345678 变成 0x1234AB78
+    +0x10  lw   a3, 0(a1)        ← a3 = 0x1234AB78
+    +0x14  ebreak
+    +0x18  0x12345678            ← 数据
+    ```
+    - ![prog_sb 的 SimpleBus 访存时序](pic/prog_sb-waveform.png)
 4. 验证
     - riscv-tests `TEST_ISA=i`: 76 PASS / 0 FAIL; cpu-tests 全 PASS (`wrong` 按设计应 FAIL)
     - ALL=dummy / hello → HIT GOOD TRAP + PASS; ALL=wrong → HIT BAD TRAP + FAIL
@@ -149,6 +158,35 @@
         |---|---|---|---|---:|---:|---:|---|
         | 2026-09-22 17:47 | 82e13c8* | minirv-npc | train | 19/20 | 239 | 662 | 支持simplebus的lsu |
 
+### E6 支持有效信号的SimpleBus协
+1. RTL 侧
+    - 思路: 前面靠的是"wait 期间 pc / 地址保持不变, 数据正好在下一拍对上"这种时序约定, 现在改成握手
+      - `xxx_reqValid`: 主设备发请求, 只拉一拍 (持续拉高就等于重复发请求)
+      - `xxx_respValid`: 从设备回响应, 与读数据同拍; 协议要求不早于请求的下一拍
+    - dpic_mem.v: 只在 `reqValid` 那拍真的访存, 并寄存一拍产生 `respValid`
+      - 读 `xxx_rdata <= reqValid ? pmem_read(addr) : 保持`; 写 `if (reqValid && wen) pmem_write(...)`
+    - ifu.v: 
+      - 两个状态: IDLE(空闲, 可以把请求送出去), WAIT(已经发出请求, 在等响应)
+      - 状态转移: IDLE 时 reqValid 把请求发出去, 跳到 WAIT; WAIT 时收到 respValid, 跳回 IDLE
+      - `ifu_reqValid = (state == IDLE) && !lsu_busy`: 决定这一拍要不要发请求;
+        要在 IDLE 且 LSU 不忙 (LSU 还在等访存响应时不发)
+      - `ifu_valid = (state == WAIT) && ifu_respValid`: 响应到了才认这条指令
+      - 没有请求时 `ifu_rdata` 要保持: load 等响应期间 IFU 空闲, 下游译码还要靠这条 hold 住的指令
+    - lsu.v: 
+      - 两个状态与 ifu.v 同理: IDLE 时若是访存指令就跳到 WAIT, WAIT 时收到存储器的 respValid 跳回 IDLE
+      - `lsu_busy = (state == WAIT)` 这条 load 还没结束的标志； 
+        - 给 IFU ：这拍 IFU 不发新的取指请求，避免取指和访存抢存储器
+        - 给顶层： 非 load 指令在取指响应那拍就退休commit，load 要推迟到 lsu_busy 这一拍（数据到齐、能写回 GPR）才退休commit。
+      - `lsu_reqValid = (state == IDLE) && (is_load || is_store)` 空闲且这条指令时方访存时发送请求。 
+2. 时序 (prog_sb)
+    - 取指: `ifu_reqValid` / `ifu_respValid` 交替出现, 且 `ifu_respValid` 与 `ifu_rdata` 同拍
+    - 写 `sb`: `lsu_reqValid` 那一拍就 commit (2 拍/指令); 读 `lw`: 还要多等 `lsu_respValid` 那拍才 commit (3 拍)
+    - ![prog_sb 的 SimpleBus 握手时序](pic/prog_sb-handshake.png)
+3. 验证
+    - riscv-tests `TEST_ISA=i` 76 PASS / 0 FAIL; cpu-tests 全 PASS; hello / dummy → HIT GOOD TRAP + Difftest PASS
+    - prog_sb 6 条 / 13 周期; add 4273 条 / 9624 周期 = 0.44
+4. 性能测试
+    - 
 ### 其他
 
 ## TODO 
