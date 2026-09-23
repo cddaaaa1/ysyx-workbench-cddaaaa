@@ -12,7 +12,7 @@ module ifu(
         input         lsu_busy,   // LSU 还在等存储器返回数据, 这拍不能发新请求
         output [31:0] inst,       // 送给 IDU, 仅当 ifu_valid 有效时才是有效指令
         output        ifu_valid,  // 本拍的 inst 是有效指令, 顶层用它屏蔽状态更新
-        output [31:0] ifu_raddr,  // SimpleBus: 取指地址
+        output [31:0] ifu_addr,   // SimpleBus: 取指地址
         input         ifu_respValid,
         output        ifu_reqValid
 );
@@ -29,6 +29,6 @@ module ifu(
     assign ifu_reqValid = (state == `IFU_IDLE) && !lsu_busy; 
     assign ifu_valid = (state == `IFU_WAIT) && ifu_respValid;
     
-    assign ifu_raddr = pc;
+    assign ifu_addr = pc;
     assign inst = ifu_rdata;
 endmodule

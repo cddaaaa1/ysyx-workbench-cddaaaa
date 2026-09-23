@@ -17,7 +17,7 @@ module lsu(
         output [31:0] lsu_addr,
         output [31:0] lsu_wdata,
         output [3:0]  lsu_wmask,
-        output        lsu_re,
+        output [1:0]  lsu_size,    // SimpleBus/AXI 的 size: 2^size 字节, 字=2'b10, 字节=2'b00
         output        lsu_wen,
         output        lsu_reqValid,
         input         lsu_respValid
@@ -26,6 +26,7 @@ module lsu(
 
     wire is_load  = valid && (lsu_op == `LSU_LW || lsu_op == `LSU_LBU);
     wire is_store = valid && (lsu_op == `LSU_SW || lsu_op == `LSU_SB);
+    wire is_mem   = is_load || is_store;
 
     always @(posedge clk) begin
         if (rst) state <= `LSU_IDLE;
@@ -36,9 +37,9 @@ module lsu(
     assign lsu_reqValid = (state == `LSU_IDLE) && (is_load || is_store);  // 单拍脉冲
     assign lsu_busy     = (state == `LSU_WAIT);  
 
-    assign lsu_addr  = (is_load || is_store) ? addr : 32'h0;
-    assign lsu_re    = is_load;
-    assign lsu_wen   = is_store;
+    assign lsu_addr  = is_mem ? addr : 32'h0;
+    assign lsu_wen   = is_store;    // 读时 wen = 0, 规范里没有单独的读使能
+    assign lsu_size  = (is_mem && (lsu_op == `LSU_LW || lsu_op == `LSU_SW)) ? 2'b10 : 2'b00;
     assign lsu_wdata = (lsu_op == `LSU_SB) ? (wdata << (addr[1:0] * 8)) : wdata;
     assign lsu_wmask = (lsu_op == `LSU_SB) ? (4'h1 << addr[1:0])
                      : (lsu_op == `LSU_SW) ? 4'hf : 4'h0;

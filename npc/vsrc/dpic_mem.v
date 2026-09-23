@@ -2,14 +2,14 @@
 module dpic_mem(
     input clk, 
     input rst, 
-    input [31:0] ifu_raddr, 
+    input [31:0] ifu_addr, 
     input ifu_reqValid, 
     output reg [31:0] ifu_rdata,
     output reg ifu_respValid,
     input [31:0] lsu_addr, 
     input [31:0] lsu_wdata, 
     input [3:0] lsu_wmask,
-    input lsu_re, 
+    input [1:0] lsu_size, 
     input lsu_wen, 
     input lsu_reqValid, 
     output reg [31:0] lsu_rdata,
@@ -45,7 +45,7 @@ module dpic_mem(
             ifu_respValid <= 1'b0;
             if (ifu_state == `MEM_IDLE) begin
                 if (ifu_reqValid) begin
-                    ifu_addr_r  <= ifu_raddr;
+                    ifu_addr_r  <= ifu_addr;
                     ifu_counter <= 32'd1;
                     ifu_delay   <= `READ_DELAY_MIN + {29'd0, lfsr[2:0]};
                     ifu_state   <= `MEM_WAIT;
