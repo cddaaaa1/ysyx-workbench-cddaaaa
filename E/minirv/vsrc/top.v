@@ -61,21 +61,16 @@ module top(
 	// ---- WBU -> GPR ----
 	wire [31:0] wb_data;
 
-	// 一条指令真正执行完毕(可以提交/退休)的那一拍:
-	//   - 非 load 指令: IFU 的 wait 拍
-	//   - load 指令:   还要再等一拍, LSU 才把读出的数据送回来
 	wire inst_is_load = (lsu_op == `LSU_LW) || (lsu_op == `LSU_LBU);
-	wire commit = (ifu_valid && !inst_is_load) || lsu_busy;
+	wire lsu_done = lsu_busy && lsu_respValid;    
+	wire commit   = (ifu_valid && !inst_is_load) || lsu_done;
 
-	// 只有 commit 的周期才真正有一条指令执行完毕;
-	// 否则 idu 会拿 IFU 里的旧信息去译码, 必须屏蔽掉所有状态更新
-	// x0 恒为 0: 写 0 号寄存器时把写使能屏蔽掉
 	wire rf_we = gpr_we && (waddr != 5'd0) && commit;
 	wire pc_we = commit;
 
 	always @(posedge clk) begin
 		if (rst) misalign <= 1'b0;
-		else     misalign <= lsu_misalign; // lsu_misalign 已按 ifu_valid 屏蔽
+		else     misalign <= lsu_misalign;
 	end
 
 	always @(posedge clk) begin
@@ -87,7 +82,6 @@ module top(
 		end
 	end
 
-	// 指令退休时通过 DPI-C 通知仿真环境; 此刻 pc / inst 仍是退休那条指令的
 	import "DPI-C" function void sim_retire(input int pc, input int inst);
 	always @(posedge clk) begin
 		if (commit) sim_retire(pc, inst);

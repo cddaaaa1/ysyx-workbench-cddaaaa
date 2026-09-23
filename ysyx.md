@@ -186,7 +186,16 @@
     - riscv-tests `TEST_ISA=i` 76 PASS / 0 FAIL; cpu-tests 全 PASS; hello / dummy → HIT GOOD TRAP + Difftest PASS
     - prog_sb 6 条 / 13 周期; add 4273 条 / 9624 周期 = 0.44
 4. 性能测试
+    - | 日期 | commit | ARCH | mainargs | 成功/总数 | GEOMEAN | MEAN | 备注 |
+        |---|---|---|---|---:|---:|---:|---|
+        | 2026-09-23 09:42 | 37215c3 | minirv-npc | train | 19/20 | 239 | 662 | 支持有效信号的SimpleBus协议 |
+
+### 存储器中添加随机延迟
+1. 取指延迟-5 cycle， 访存保留之前
     - 
+    - ![prog_sb 的取指延迟5时序](pic/prog_sb-inst-delay.png)
+
+2. 
 ### 其他
 
 ## TODO 

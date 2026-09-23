@@ -7,6 +7,12 @@ module sim_top (
     output misalign
 );  
 
+    reg [63:0] cycle;
+     always @(posedge clk) begin
+        if (rst) cycle <= 64'd0;
+        else     cycle <= cycle + 64'd1;
+    end
+
     wire [31:0] ifu_raddr;
     wire [31:0] ifu_rdata;
     wire [31:0] lsu_addr;
@@ -43,6 +49,7 @@ module sim_top (
 
     dpic_mem u_dpic_mem (
         .clk(clk), 
+        .rst(rst), 
         .ifu_raddr(ifu_raddr), 
         .ifu_reqValid(ifu_reqValid), 
         .ifu_respValid(ifu_respValid), 

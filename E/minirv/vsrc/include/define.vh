@@ -38,4 +38,7 @@
 `define IFU_WAIT 1'b1
 `define LSU_IDLE 1'b0
 `define LSU_WAIT 1'b1
+`define MEM_IDLE 1'b0
+`define MEM_WAIT 1'b1
+`define READ_DELAY 5
 `endif
