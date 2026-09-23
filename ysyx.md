@@ -84,7 +84,7 @@
     ARCH      = minirv-npc
     mainargs  = train
     benchlist = 除开303.cproc  无结果
-    RTC 频率   = 400 MHz  (E/minirv/csrc/pmem.cpp 的 NPC_FREQ_HZ)
+    RTC 频率   = 400 MHz  (npc/csrc/pmem.cpp 的 NPC_FREQ_HZ)
     GEOMEAN   = 563 Marks   MEAN = 1542 
 
 ### E6 支持SimpleBus的IFU

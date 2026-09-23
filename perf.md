@@ -12,7 +12,7 @@ python3 record.py -w --note "备注"              # 刷新本文件的表格
 
 
 ```sh
-cd E/minirv
+cd npc
 ./build/sim-sim_top program/prog_sb.bin
 NPC_TRACE=prog_sb.vcd NPC_TRACE_DEPTH=99 ./build/sim-sim_top program/prog_sb.bin   # 顺带 dump 波形
 ```
@@ -56,6 +56,6 @@ NPC_TRACE=prog_sb.vcd NPC_TRACE_DEPTH=99 ./build/sim-sim_top program/prog_sb.bin
 | 305.h264 | 437 | 431987 us | 535440 us | 37.99 s | 92150323 | 215666758 | 0.43 | OK |
 
 > 在 `archbench/scripts` 下执行 `bash run.sh ARCH=... mainargs=train`，再 `python3 record.py -w` 更新上表。
-> `commit` 带 `*` 表示评测时 `E/minirv` 有未提交改动, 不代表 HEAD 那个版本。
+> `commit` 带 `*` 表示评测时 `npc/` 有未提交改动, 不代表 HEAD 那个版本。
 > GEOMEAN/MEAN 只对产出 `[RESULT]` 的项计算（`run.sh` 自己的 excel.txt 在任一项为 0 时会把 GEOMEAN 算成 0）。
 <!-- archbench:end -->

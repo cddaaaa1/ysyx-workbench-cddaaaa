@@ -1,128 +1,99 @@
-# ============================================================
-# NPC 仿真 Makefile
-# 功能：Verilator 编译 + 仿真 + 波形生成
-# 不包含 NVBoard 连接
-# ============================================================
-
-# -------------------- 基本配置 --------------------
 TOPNAME = top
-BUILD_DIR = ./build
-OBJ_DIR = $(BUILD_DIR)/obj_dir
-BIN = $(BUILD_DIR)/$(TOPNAME)
+NXDC_FILES = constr/top.nxdc
+INC_PATH ?=
 
-# -------------------- Verilator 配置 --------------------
 VERILATOR = verilator
 VERILATOR_CFLAGS += -MMD --build -cc \
-					-O3 --x-assign fast --x-initial fast --noassert
+				-O3 --x-assign fast --x-initial fast --noassert --trace
 
-# -------------------- 波形配置 --------------------
-WAVE_FILE = $(BUILD_DIR)/wave.vcd
-LOG_FILE = $(BUILD_DIR)/sim.log
-TRACE ?= 1
+BUILD_DIR = ./build
+OBJ_DIR = ./obj_dir
+BIN = $(BUILD_DIR)/$(TOPNAME)
 
-# 如果需要波形，添加 --trace
-ifeq ($(TRACE), 1)
-VERILATOR_CFLAGS += --trace
-endif
+default: $(BIN)
 
-# -------------------- 目录创建 --------------------
 $(shell mkdir -p $(BUILD_DIR))
 
-# -------------------- 源文件收集 --------------------
-VSRCS = $(shell find $(abspath ./vsrc) -name "*.v" 2>/dev/null)
-CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp" 2>/dev/null)
+SRC_AUTO_BIND = $(abspath $(BUILD_DIR)/auto_bind.cpp)
+$(SRC_AUTO_BIND): $(NXDC_FILES)
+	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
 
-# -------------------- 编译选项 --------------------
+VSRCS = $(shell find $(abspath ./vsrc) -name "*.v")
+# 共享的 Verilog 头文件: 只参与依赖判断, 不作为源文件传给 verilator
+VHDRS = $(shell find $(abspath ./vsrc/include) -name "*.vh")
+# Verilog `include 的搜索路径, 让各模块能直接写 `include "define.vh"
+VERILATOR_CFLAGS += -I$(abspath ./vsrc/include)
+CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp")
+CSRCS += $(SRC_AUTO_BIND)
+
+include $(NVBOARD_HOME)/scripts/nvboard.mk
+
 INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
 
-# -------------------- 默认目标 --------------------
-default: $(BIN)
-
-# -------------------- Verilator 编译规则 --------------------
-$(BIN): $(VSRCS) $(CSRCS)
-	@echo "========================================="
-	@echo "  编译 NPC"
-	@echo "  顶层模块: $(TOPNAME)"
-	@echo "  源文件:   $(words $(VSRCS)) 个 Verilog, $(words $(CSRCS)) 个 C++"
-	@echo "========================================="
+$(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE) $(VHDRS)
 	@rm -rf $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_CFLAGS) \
-		--top-module $(TOPNAME) $(VSRCS) $(CSRCS) \
+		--top-module $(TOPNAME) $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE) \
 		$(addprefix -CFLAGS , $(CXXFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
 		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
-	@echo "编译完成: $(BIN)"
 
-# -------------------- 仿真规则 --------------------
-sim: $(BIN)
-	@echo "========================================="
-	@echo "  开始仿真"
-	@echo "  可执行文件: $(BIN)"
-	@echo "  日志文件:   $(LOG_FILE)"
-	@echo "========================================="
-	@$(BIN) 2>&1 | tee $(LOG_FILE)
-	@echo ""
-	@echo "仿真结束"
-	@echo "日志保存在: $(LOG_FILE)"
+all: default
 
-# -------------------- 带波形的仿真 --------------------
-sim-wave: $(BIN)
-	@echo "========================================="
-	@echo "  开始仿真（带波形）"
-	@echo "  波形文件: $(WAVE_FILE)"
-	@echo "========================================="
-	@$(BIN) --wave=$(WAVE_FILE) 2>&1 | tee $(LOG_FILE)
-	@echo ""
-	@echo "仿真结束，波形已保存: $(WAVE_FILE)"
-	@if [ -f $(WAVE_FILE) ]; then \
-		echo "正在打开 GTKWave..."; \
-		gtkwave $(WAVE_FILE) & \
-	else \
-		echo "警告: 未生成波形文件"; \
-	fi
+run: $(BIN)
+	@$^
 
-# -------------------- 运行规则（兼容） --------------------
-run: sim
-
-# -------------------- 查看波形 --------------------
-wave:
-	@if [ -f $(WAVE_FILE) ]; then \
-		gtkwave $(WAVE_FILE) & \
-	else \
-		echo "错误: 波形文件不存在，请先运行 make sim-wave"; \
-	fi
-
-# -------------------- 查看日志 --------------------
-log:
-	@if [ -f $(LOG_FILE) ]; then \
-		cat $(LOG_FILE); \
-	else \
-		echo "错误: 日志文件不存在，请先运行 make sim"; \
-	fi
-
-# -------------------- 清理规则 --------------------
 clean:
-	@echo "清理构建目录..."
-	@rm -rf $(BUILD_DIR)
-	@echo "清理完成"
+	rm -rf $(BUILD_DIR) $(OBJ_DIR)
 
-# -------------------- 伪目标 --------------------
-.PHONY: default sim sim-wave run wave log clean
+.PHONY: default all clean run
 
-# -------------------- 帮助信息 --------------------
-help:
-	@echo "NPC 仿真 Makefile"
-	@echo ""
-	@echo "可用目标:"
-	@echo "  make            - 编译 NPC"
-	@echo "  make sim        - 编译并仿真"
-	@echo "  make sim-wave   - 编译并仿真（生成波形）"
-	@echo "  make run        - 等同于 make sim"
-	@echo "  make wave       - 查看波形（GTKWave）"
-	@echo "  make log        - 查看仿真日志"
-	@echo "  make clean      - 清理构建文件"
-	@echo "  make help       - 显示帮助"
-	@echo ""
-	@echo "变量:"
-	@echo "  TOPNAME=top     - 顶层模块名"
-	@echo "  TRACE=1         - 启用波形追踪"
+# Pure Verilator simulation.
+SIM_TOP = sim_top
+SIM_TOP_SRC = $(abspath ./vsrc/sim_top.v)
+SIM_VSRCS = $(SIM_TOP_SRC) $(filter-out $(SIM_TOP_SRC), $(VSRCS))
+SIM_CSRC = $(abspath ./csrc/main.cpp)
+SIM_CSRC += $(abspath ./csrc/pmem.cpp)
+SIM_CSRC += $(abspath ./csrc/minirvemu.cpp)
+SIM_OBJ_DIR = $(OBJ_DIR)
+SIM_BIN = ./build/sim-$(SIM_TOP)
+
+sim: $(SIM_BIN)
+
+$(SIM_BIN): $(SIM_VSRCS) $(SIM_CSRC) $(VHDRS)
+	@rm -rf $(SIM_OBJ_DIR)
+	@mkdir -p $(dir $(SIM_BIN))
+	$(VERILATOR) $(VERILATOR_CFLAGS) --trace \
+		--top-module $(SIM_TOP) $(SIM_VSRCS) \
+		--Mdir $(SIM_OBJ_DIR) --exe $(SIM_CSRC) \
+		-CFLAGS "-I$(CURDIR)" -o $(abspath $(SIM_BIN))
+
+# IMG 可由命令行传入指定镜像路径; 为空时用 main.cpp 里的缺省值
+# NPC_TRACE=dump.vcd ./build/sim-sim_top program/prog_add.bin
+sim-run: $(SIM_BIN)
+	@./$(SIM_BIN) $(IMG)
+
+sim-clean:
+	rm -rf $(SIM_OBJ_DIR) $(SIM_BIN) dump.vcd
+
+.PHONY: sim sim-run sim-clean
+
+# minirvEMU: 纯 C++ 的指令集模拟器, 不依赖 Verilator/NVBoard
+EMU_INC = $(abspath ./csrc)
+EMU_SRCS = $(abspath ./csrc/emu_main.cpp) $(abspath ./csrc/minirvemu.cpp)
+EMU_HDRS = $(abspath ./csrc/minirvemu.h)
+EMU_BIN = ./build/minirvemu
+
+emu: $(EMU_BIN)
+
+$(EMU_BIN): $(EMU_SRCS) $(EMU_HDRS)
+	@mkdir -p $(dir $(EMU_BIN))
+	$(CXX) -O2 -Wall -Wextra -I$(EMU_INC) -o $@ $(EMU_SRCS)
+
+emu-run: $(EMU_BIN)
+	@./$(EMU_BIN)
+
+emu-clean:
+	rm -rf $(EMU_BIN)
+
+.PHONY: emu emu-run emu-clean

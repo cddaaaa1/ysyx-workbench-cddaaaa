@@ -25,9 +25,6 @@ image: image-dep
 	@echo + OBJCOPY "->" $(IMAGE_REL).bin
 	@$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin
 
-# 仿真工程位置; 若仿真工程换地方, 改这里
-NPC_HOME := $(abspath $(AM_HOME)/../E/minirv)
-
 run: insert-arg
 	@$(MAKE) -s -C $(NPC_HOME) sim-run IMG=$(IMAGE).bin
 
