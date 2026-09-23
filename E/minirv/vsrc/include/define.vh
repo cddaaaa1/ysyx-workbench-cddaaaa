@@ -40,5 +40,5 @@
 `define LSU_WAIT 1'b1
 `define MEM_IDLE 1'b0
 `define MEM_WAIT 1'b1
-`define READ_DELAY 5
+`define READ_DELAY_MIN 2
 `endif
