@@ -191,11 +191,17 @@
         | 2026-09-23 09:42 | 37215c3 | minirv-npc | train | 19/20 | 239 | 662 | 支持有效信号的SimpleBus协议 |
 
 ### 存储器中添加随机延迟
-1. 取指延迟-5 cycle， 访存保留之前
-    - 
-    - ![prog_sb 的取指延迟5时序](pic/prog_sb-inst-delay.png)
-
-2. 
+1. RTL 侧: dpic_mem.v 里取指/访存各加 IDLE / WAIT 两态 + `*_counter` 计数器,
+   收到请求后等够 `*_delay` 拍再回 `respValid`
+   - 取指延迟 5 拍, 访存不变
+      - ![访存 1 拍, 取指 5 拍的时序](pic/prog_sb-inst-delay.png)
+   - 取指、访存都延迟 5 拍
+      - ![取指 5 拍, 访存 5 拍的时序](pic/prog_sb_ifu_lsu_delay.png)
+   - 用 LFSR 决定延迟: 每拍推进, 请求那拍采样低 3 位, 延迟 = 2~9 拍随机
+      - ![LFSR 随机延迟的时序](pic/prog_sb_lsfr_delay.png)
+2. 验证： 
+   - riscv-tests `TEST_ISA=i` 76 PASS / 0 FAIL; cpu-tests 全 PASS; hello / dummy → HIT GOOD TRAP + Difftest PASS
+   - prog_sb: 6 instructions executed in 44 cycles (IPC = 0.14)
 ### 其他
 
 ## TODO 
