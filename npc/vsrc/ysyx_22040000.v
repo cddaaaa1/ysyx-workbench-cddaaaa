@@ -77,20 +77,14 @@ module ysyx_22040000(
 		else       misalign <= lsu_misalign;
 	end
 
-	always @(posedge clock) begin
-		if (reset) begin
-			ebreak <= 1'b0;
-		end
-		else if (is_ebreak && commit && !ebreak) begin
-			ebreak <= 1'b1;
-		end
-	end
-
-	import "DPI-C" function void sim_retire(input int pc, input int inst);
-	always @(posedge clock) begin
-		if (commit) sim_retire(pc, inst);
-	end
-
+	// always @(posedge clock) begin
+	// 	if (reset) begin
+	// 		ebreak <= 1'b0;
+	// 	end
+	// 	else if (is_ebreak && commit && !ebreak) begin
+	// 		ebreak <= 1'b1;
+	// 	end
+	// end
 
 	ysyx_22040000_pc_reg u_pc_reg(
 		.clk(clock),
@@ -179,5 +173,25 @@ module ysyx_22040000(
 		.wb_data(wb_data),
 		.next_pc(next_pc)
 	);
+
+`ifndef SYNTHESIS
+
+	import "DPI-C" function void sim_retire(input int pc, input int inst);
+	always @(posedge clock) begin
+		if (commit) sim_retire(pc, inst);
+	end
+
+	// ebreak 结束程序: a0 是 halt(code) 的返回码
+	wire [31:0] a0 = u_gpr.rf[10];
+
+	always @(posedge clock) begin
+		if (is_ebreak && commit) begin
+			if (a0 == 32'd0) $display("EBREAK: GOOD TRAP");
+			else             $display("EBREAK: BAD TRAP (a0 = %0d)", a0);
+			$finish;
+		end
+	end
+
+`endif
 
 endmodule

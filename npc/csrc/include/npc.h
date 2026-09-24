@@ -20,8 +20,12 @@ uint32_t pmem_uart_status(void);
 uint32_t pmem_rtc_lo(void);
 uint32_t pmem_rtc_hi(void);
 
-extern unsigned long long sim_cycle;
-extern bool g_retired;
-extern uint32_t g_retire_pc;
+struct SimState {
+	unsigned long long cycle = 0;      // 当前周期数, RTC 用
+	bool               retired = false; // 本拍提交了指令
+	uint32_t           retire_pc = 0;
+};
+
+extern SimState sim;
 
 #endif

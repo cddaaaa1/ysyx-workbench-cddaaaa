@@ -16,10 +16,7 @@ static VerilatedContext *contextp = nullptr;
 static VerilatedVcdC *tfp = nullptr;
 static VSimTop *top = nullptr;
 
-unsigned long long sim_cycle = 0;
-
-bool g_retired = false;
-uint32_t g_retire_pc = 0;
+SimState sim;
 
 static void eval_and_dump()
 {
@@ -68,16 +65,16 @@ int main(int argc, char **argv)
     long long inst_count = 0;
 
     for (; !contextp->gotFinish(); cycle++) {
-        sim_cycle = cycle;
-        g_retired = false;
+        sim.cycle = cycle;
+        sim.retired = false;
         single_cycle();
 
-        if (g_retired)
+        if (sim.retired)
             inst_count++;
     }
 
     printf("Simulation stopped after %llu cycles, %lld instructions executed (last pc = 0x%08x)\n",
-           cycle + 1, inst_count, static_cast<unsigned>(g_retire_pc));
+           cycle + 1, inst_count, static_cast<unsigned>(sim.retire_pc));
 
     top->final();
     if (tfp) {

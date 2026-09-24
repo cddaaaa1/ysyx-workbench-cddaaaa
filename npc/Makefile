@@ -31,7 +31,7 @@ VHDRS     := $(wildcard $(VSRC_DIR)/include/*.vh)
 INC_FLAGS := -I$(VSRC_DIR)/include -I$(PERIP_DIR)/spi/rtl -I$(PERIP_DIR)/uart16550/rtl
 
 VERILATOR_CFLAGS  := -MMD -O3 --x-assign fast --x-initial fast --noassert --trace
-VERILATOR_CFLAGS  += -cc --exe --top-module $(SIM_TOP)
+VERILATOR_CFLAGS  += --build -j $(shell nproc) -cc --exe --top-module $(SIM_TOP)
 VERILATOR_CFLAGS  += --timescale "1ns/1ns" --no-timing \
                      -D__VERILOG__ -DPDK_BEHAV -D__UART_TO_CONSOLE__
 VERILATOR_CFLAGS  += $(INC_FLAGS)

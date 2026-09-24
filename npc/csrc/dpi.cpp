@@ -19,7 +19,7 @@ uint32_t pmem_rtc_lo(void) { return g_rtc_lo; }
 uint32_t pmem_rtc_hi(void) { return g_rtc_hi; }
 
 static uint64_t get_time_us() {
-    return (uint64_t)(sim_cycle / NPC_FREQ_HZ * 1000000.0);
+    return (uint64_t)(sim.cycle / NPC_FREQ_HZ * 1000000.0);
 }
 
 static int addr_valid(uint32_t addr)
@@ -36,9 +36,9 @@ static int addr_valid(uint32_t addr)
 
 extern "C" void sim_retire(int pc, int inst)
 {
-	g_retire_pc   = (uint32_t)pc;
+	sim.retire_pc   = (uint32_t)pc;
 	g_retire_inst = (uint32_t)inst;
-	g_retired = true;
+	sim.retired = true;
 }
 
 extern "C" int pmem_read(int raddr)
