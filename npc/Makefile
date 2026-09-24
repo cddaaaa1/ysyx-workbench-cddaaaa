@@ -1,112 +1,65 @@
-TOPNAME = top
-NXDC_FILES = constr/top.nxdc
-INC_PATH ?=
+# ---- 工具 ----
+VERILATOR := verilator
 
-VERILATOR = verilator
-VERILATOR_CFLAGS += -MMD --build -cc \
-				-O3 --x-assign fast --x-initial fast --noassert --trace
-VERILATOR_CFLAGS += --timescale "1ns/1ns" --no-timing \
-				-D__VERILOG__ -DPDK_BEHAV -D__UART_TO_CONSOLE__
+# ---- 路径 ----
+NPC_HOME  := $(CURDIR)
+SOC_HOME  ?= $(abspath $(NPC_HOME)/../ysyxSoC)
+VSRC_DIR  := $(NPC_HOME)/vsrc
+CSRC_DIR  := $(NPC_HOME)/csrc
+BUILD_DIR := $(NPC_HOME)/build
+OBJ_DIR   := $(NPC_HOME)/obj_dir
 
+PERIP_DIR     := $(SOC_HOME)/perip
+ELABORATE_TOP := $(SOC_HOME)/ready-to-run/minirv/ElaborateTop.v
 
-BUILD_DIR = ./build
-OBJ_DIR = ./obj_dir
-BIN = $(BUILD_DIR)/$(TOPNAME)
+# ---- 镜像 ----
+IMG ?= $(SOC_HOME)/ready-to-run/minirv/hello-minirv-ysyxsoc.bin
+VCD ?= dump.vcd
 
-default: $(BIN)
+# ---- 仿真顶层 ----
+SIM_TOP := SimTop
+SIM_BIN := $(BUILD_DIR)/sim-$(SIM_TOP)
 
-$(shell mkdir -p $(BUILD_DIR))
+# ---- 源文件 ----
+NPC_VSRCS := $(wildcard $(VSRC_DIR)/*.v)
+SOC_VSRCS := $(shell find $(PERIP_DIR) \( -name "*.v" -o -name "*.sv" \)) $(ELABORATE_TOP)
+SIM_VSRCS := $(filter-out $(VSRC_DIR)/sim_top.v, $(NPC_VSRCS)) $(SOC_VSRCS)
+SIM_CSRC  := $(CSRC_DIR)/main.cpp $(CSRC_DIR)/dpi.cpp $(CSRC_DIR)/pmem.cpp $(CSRC_DIR)/minirvemu.cpp
+VHDRS     := $(wildcard $(VSRC_DIR)/include/*.vh)
 
-SRC_AUTO_BIND = $(abspath $(BUILD_DIR)/auto_bind.cpp)
-$(SRC_AUTO_BIND): $(NXDC_FILES)
-	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
+# ---- 编译选项 ----
+INC_FLAGS := -I$(VSRC_DIR)/include -I$(PERIP_DIR)/spi/rtl -I$(PERIP_DIR)/uart16550/rtl
 
-VSRCS = $(shell find $(abspath ./vsrc) -name "*.v")
-YSYXSOC_HOME ?= $(abspath ../ysyxSoC)
-PERIP_DIR = $(YSYXSOC_HOME)/perip
-PERIP_VSRCS = $(shell find $(PERIP_DIR) \( -name "*.v" -o -name "*.sv" \) 2>/dev/null)
-VSRCS += $(PERIP_VSRCS)
-ELABORATE_TOP = $(YSYXSOC_HOME)/ready-to-run/minirv/ElaborateTop.v
-VSRCS += $(ELABORATE_TOP)
-# 共享的 Verilog 头文件: 只参与依赖判断, 不作为源文件传给 verilator
-VHDRS = $(shell find $(abspath ./vsrc/include) -name "*.vh")
-# Verilog `include 的搜索路径, 让各模块能直接写 `include "define.vh"
-VERILATOR_CFLAGS += -I$(abspath ./vsrc/include)
-# perip 里 spi / uart16550 的源文件用 `include "xxx_defines.v" 引宏定义头文件
-VERILATOR_CFLAGS += -I$(PERIP_DIR)/spi/rtl -I$(PERIP_DIR)/uart16550/rtl
-CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp")
-CSRCS += $(SRC_AUTO_BIND)
+VERILATOR_CFLAGS  := -MMD -O3 --x-assign fast --x-initial fast --noassert --trace
+VERILATOR_CFLAGS  += -cc --exe --top-module $(SIM_TOP)
+VERILATOR_CFLAGS  += --timescale "1ns/1ns" --no-timing \
+                     -D__VERILOG__ -DPDK_BEHAV -D__UART_TO_CONSOLE__
+VERILATOR_CFLAGS  += $(INC_FLAGS)
 
-include $(NVBOARD_HOME)/scripts/nvboard.mk
-
-INCFLAGS = $(addprefix -I, $(INC_PATH))
-CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
-
-$(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE) $(VHDRS)
-	@rm -rf $(OBJ_DIR)
-	$(VERILATOR) $(VERILATOR_CFLAGS) \
-		--top-module $(TOPNAME) $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE) \
-		$(addprefix -CFLAGS , $(CXXFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
-		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
-
-all: default
-
-run: $(BIN)
-	@$^
-
-clean:
-	rm -rf $(BUILD_DIR) $(OBJ_DIR)
-
-.PHONY: default all clean run
-
-# Pure Verilator simulation.
-# 顶层改用 ysyxSoC 生成文件里的 SimTop: CPU(NPC) -> MemBridge -> AXI -> 各外设都在它下面
-SIM_TOP = SimTop
-SIM_TOP_SRC = $(ELABORATE_TOP)
-# 旧的单 CPU 仿真壳 vsrc/sim_top.v 不参与本流程(它例化的 top + dpic_mem 只在旧流程里用)
-SIM_VSRCS = $(filter-out $(abspath ./vsrc/sim_top.v), $(VSRCS))
-SIM_CSRC = $(abspath ./csrc/main.cpp)
-SIM_CSRC += $(abspath ./csrc/pmem.cpp)
-SIM_CSRC += $(abspath ./csrc/minirvemu.cpp)
-SIM_OBJ_DIR = $(OBJ_DIR)
-SIM_BIN = ./build/sim-$(SIM_TOP)
+# ---- 规则 ----
+default: sim
 
 sim: $(SIM_BIN)
 
 $(SIM_BIN): $(SIM_VSRCS) $(SIM_CSRC) $(VHDRS)
-	@rm -rf $(SIM_OBJ_DIR)
-	@mkdir -p $(dir $(SIM_BIN))
-	$(VERILATOR) $(VERILATOR_CFLAGS) --trace \
-		--top-module $(SIM_TOP) $(SIM_VSRCS) \
-		--Mdir $(SIM_OBJ_DIR) --exe $(SIM_CSRC) \
-		-CFLAGS "-I$(CURDIR)" -o $(abspath $(SIM_BIN))
+	@mkdir -p $(BUILD_DIR)
+	$(VERILATOR) $(VERILATOR_CFLAGS) --Mdir $(OBJ_DIR) -o $(abspath $(SIM_BIN)) \
+		$(SIM_VSRCS) $(SIM_CSRC) -CFLAGS "-I$(NPC_HOME)"
 
-# IMG 可由命令行传入指定镜像路径; 为空时用 main.cpp 里的缺省值
-# NPC_TRACE=dump.vcd ./build/sim-sim_top program/prog_add.bin
 sim-run: $(SIM_BIN)
-	@./$(SIM_BIN) $(IMG)
+	@$(SIM_BIN) $(IMG)
+
+sim-wave: $(SIM_BIN)
+	@NPC_TRACE=$(VCD) $(SIM_BIN) $(IMG)
 
 sim-clean:
-	rm -rf $(SIM_OBJ_DIR) $(SIM_BIN) dump.vcd
+	rm -rf $(OBJ_DIR) $(BUILD_DIR) $(VCD)
 
-.PHONY: sim sim-run sim-clean
+clean: sim-clean
 
-# minirvEMU: 纯 C++ 的指令集模拟器, 不依赖 Verilator/NVBoard
-EMU_INC = $(abspath ./csrc)
-EMU_SRCS = $(abspath ./csrc/emu_main.cpp) $(abspath ./csrc/minirvemu.cpp)
-EMU_HDRS = $(abspath ./csrc/minirvemu.h)
-EMU_BIN = ./build/minirvemu
+-include $(wildcard $(OBJ_DIR)/*.d)
 
-emu: $(EMU_BIN)
+.PHONY: default sim sim-run sim-wave sim-clean clean
 
-$(EMU_BIN): $(EMU_SRCS) $(EMU_HDRS)
-	@mkdir -p $(dir $(EMU_BIN))
-	$(CXX) -O2 -Wall -Wextra -I$(EMU_INC) -o $@ $(EMU_SRCS)
 
-emu-run: $(EMU_BIN)
-	@./$(EMU_BIN)
 
-emu-clean:
-	rm -rf $(EMU_BIN)
-
-.PHONY: emu emu-run emu-clean

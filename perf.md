@@ -29,8 +29,9 @@ NPC_TRACE=prog_sb.vcd NPC_TRACE_DEPTH=99 ./build/sim-sim_top program/prog_sb.bin
 | 2026-09-22 14:23 | 6e6b6fe* | minirv-npc | train | 19/20 | 279 | 770 | 计数器改 64 位后复测 (RTL 同上一行, 分数一致) |
 | 2026-09-22 17:47 | 82e13c8* | minirv-npc | train | 19/20 | 239 | 662 | 支持simplebus的lsu |
 | 2026-09-23 09:42 | 37215c3 | minirv-npc | train | 19/20 | 239 | 662 | 支持有效信号的SimpleBus协议 |
+| 2026-09-24 10:43 | 9a44e22* | minirv-npc | train | 19/20 | 239 | 662 | 备注 |
 
-### 明细（最近一次: 2026-09-23 09:42）
+### 明细（最近一次: 2026-09-24 10:43）
 
 | bench | Marks | Scored | Total | WALL | 指令数 | 周期数 | IPC | 备注 |
 |---|---:|---:|---:|---:|---:|---:|---:|---|

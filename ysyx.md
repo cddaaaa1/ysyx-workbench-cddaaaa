@@ -222,7 +222,7 @@
      Hello, AbstractMachine!
      mainargs = 'Hello, One Student One Chip!'.
      ```
-     
+
 ### 其他
 
 ## TODO 
@@ -234,3 +234,4 @@
 - archbench 303 无结果： 303.cproc 是编译器，启动就必须 fopen("input/train-Block.i") 读源文件，而 minirv-npc 平台上 FILE 这一层不可用（klib 是预编译且混淆的 fileio.o，本地没有 fileio.c 源码），于是 AM Panic: unsupport FILE → halt(1) → HIT BAD TRAP: a0=1，程序没跑到打印 [RESULT] 就结束了，所以记 0 分、显示"无结果"。
 - ebreak 改回 DPI-c 
 - Difftest 在加入系统总线后就没有更新了
+- 调整csrc 

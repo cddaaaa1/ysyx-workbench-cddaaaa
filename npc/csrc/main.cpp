@@ -7,7 +7,7 @@
 #include "verilated_vcd_c.h"
 #include "../obj_dir/VSimTop.h"
 #include "minirvemu.h"
-#include "pmem.h"
+#include "include/npc.h"
 
 #define PROGRAM_PATH "../ysyxSoC/ready-to-run/minirv/hello-minirv-ysyxsoc.bin"
 #define MAX_CYCLES 1e8
@@ -18,15 +18,8 @@ static VSimTop *top = nullptr;
 
 unsigned long long sim_cycle = 0;
 
-static bool g_retired = false;
-static uint32_t g_retire_pc = 0, g_retire_inst = 0;
-
-extern "C" void sim_retire(int pc, int inst)
-{
-    g_retire_pc   = static_cast<uint32_t>(pc);
-    g_retire_inst = static_cast<uint32_t>(inst);
-    g_retired = true;
-}
+bool g_retired = false;
+uint32_t g_retire_pc = 0;
 
 static void eval_and_dump()
 {
@@ -36,8 +29,8 @@ static void eval_and_dump()
 }
 
 void single_cycle() {
-  top->clock = 0; top->cpuClock = 0; top->eval();
-  top->clock = 1; top->cpuClock = 1; top->eval();
+  top->clock = 0; top->cpuClock = 0; eval_and_dump();
+  top->clock = 1; top->cpuClock = 1; eval_and_dump();
 }
 
 static void reset(int cycles)
@@ -53,11 +46,7 @@ int main(int argc, char **argv)
 {
     const char *img = (argc > 1) ? argv[1] : PROGRAM_PATH;
 
-    if (flash_load(img) <= 0) {
-        printf("failed to load program into flash from %s\n", img);
-        printf("Simulation stop\n");
-        return 1;
-    }
+    flash_load(img);
 
     ref_reset();
     

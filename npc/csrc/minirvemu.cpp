@@ -1,5 +1,5 @@
 #include "minirvemu.h"
-#include "pmem.h"
+#include "include/npc.h"
 
 #include <stdio.h>
 #include <string.h>
