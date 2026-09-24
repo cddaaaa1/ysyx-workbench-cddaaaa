@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 #include "verilated.h"
 #include "verilated_vcd_c.h"
@@ -8,19 +9,17 @@
 #include "minirvemu.h"
 #include "pmem.h"
 
-#define PROGRAM_PATH "../../am-kernels/tests/cpu-tests/build/dummy-minirv-npc.bin" // 缺省镜像
+#define PROGRAM_PATH "../ysyxSoC/ready-to-run/minirv/hello-minirv-ysyxsoc.bin"
 #define MAX_CYCLES 1e8
 
 static VerilatedContext *contextp = nullptr;
 static VerilatedVcdC *tfp = nullptr;
 static VSimTop *top = nullptr;
 
-unsigned long long sim_cycle = 0; // 已仿真的周期数, 供外设把周期换算成时间
+unsigned long long sim_cycle = 0;
 
 static bool g_retired = false;
 static uint32_t g_retire_pc = 0, g_retire_inst = 0;
-
-extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }
 
 extern "C" void sim_retire(int pc, int inst)
 {
@@ -52,6 +51,14 @@ static void reset(int cycles)
 
 int main(int argc, char **argv)
 {
+    const char *img = (argc > 1) ? argv[1] : PROGRAM_PATH;
+
+    if (flash_load(img) <= 0) {
+        printf("failed to load program into flash from %s\n", img);
+        printf("Simulation stop\n");
+        return 1;
+    }
+
     ref_reset();
     
     contextp = new VerilatedContext;
@@ -68,17 +75,14 @@ int main(int argc, char **argv)
     }
     reset(100); 
 
-
     unsigned long long cycle = 0;
-    long long inst_count = 0; // 已执行完毕的指令数, 用于测量 IPC
+    long long inst_count = 0;
 
     for (; !contextp->gotFinish(); cycle++) {
         sim_cycle = cycle;
         g_retired = false;
-        single_cycle();              // DUT 走一个周期
+        single_cycle();
 
-        // RTL 在指令退休的那一刻通过 DPI-C 回调 sim_retire
-        // (SoC 流程下仿真环境看不到 pc / ebreak, 所以这里只统计数据, 不做 difftest)
         if (g_retired)
             inst_count++;
     }

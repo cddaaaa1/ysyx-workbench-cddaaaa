@@ -209,7 +209,20 @@
    - 验证：触发了flash_read()中的assert(0)错误
 
 2. 运行hello 程序
-   
+   - Flash 行为模型 (`csrc/pmem.cpp`)
+     - 存储: `uint8_t flash[FLASH_SIZE]`;  `FLASH_BASE 0x30000000` / `FLASH_SIZE (16 * 1024 * 1024)`
+     - `flash_load(img)`: 把 .bin 读进 flash
+     - `flash_read(raddr, data)`: DPI-C 函数, 从 flash 取 4 字节按小端拼成一个字交回 SPI 控制器； raddr 是 24 位偏移, 不是绝对地址
+   - 验证
+     ```text
+     [flash] .../hello-minirv-ysyxsoc.bin: 673008 bytes loaded at 0x30000000
+     PSRAM Model: Initialized memory with 0 for device 0.
+     loading to memory region [0x80000000, 0x8004896c)
+     loading to memory region [0x80048a00, 0x80048b00)
+     Hello, AbstractMachine!
+     mainargs = 'Hello, One Student One Chip!'.
+     ```
+     
 ### 其他
 
 ## TODO 
