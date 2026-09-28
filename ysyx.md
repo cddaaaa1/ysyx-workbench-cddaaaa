@@ -257,13 +257,19 @@
    - 传输 putch(ch):
       - 先读 LSR 等 bit5 (TFE - Transmit FIFO Empty) 置起: 发送 FIFO 空 (tf_count==0), 可以接收新字符
       - 再写 THR - Transmit Holding Register(偏移 0) 把字符推入发送 FIFO
+   - 打印流程 (Hello, AbstractMachine! 是怎么打印出来的):
+      1. hello.c 的 main() 逐字符调用 putch('H')
+      2. putch: 先读 LSR(+5) 等 bit5(TFE)=1 (问"能发吗"), 再写 THR(+0) = 'H' (投递字符)
+      3. sb 指令 = 一条普通 store: NPC LSU → AXI → APB → uart_top_apb
+      4. uart_regs: tf_push=1 → uart_tfifo: push 时仿真里直接 $write("%c") → 终端出现 'H'
    - 验证:
       ```sh
       cd am-kernels/kernels/hello
       make ARCH=minirv-ysyxsoc run
       ```
       预期输出 Hello, AbstractMachine! 
-
+6. 接入NVBoard 
+   - 
 
 ### 其他
 
