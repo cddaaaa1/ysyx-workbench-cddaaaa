@@ -300,7 +300,17 @@
       ```
       → loading to memory region [...] + Hello, AbstractMachine! + EBREAK: GOOD TRAP
       命令行 和 NVBoard 右上角串口终端 都有输出
+    
+  
+2. GPIO 
+   - 实现用于驱动LED的寄存器 
+      - 实现GPIO 控制器 mygpio_top_apb.v
+          -  
+      - 修改NVBoard约束文件， 将gpioout 绑到ELD
 
+      - 流水灯测试程序
+   -  
+  
 ## TODO 
 - 存储器表示: REF(minirvEMU) 按字存 (`uint32_t M[]`, 字节访问靠移位+掩码),
    NPC 侧 pmem 按字节存 (`uint8_t pmem[]`, 字访问靠拼接)。对外接口都是 32 位字 + `wmask` 字节掩码, 语义等价;
