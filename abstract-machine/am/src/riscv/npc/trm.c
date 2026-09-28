@@ -29,7 +29,8 @@ void halt(int code) {
 }
 
 static void uart_init(uint32_t baud_rate) {
-  uint16_t divisor = 2.5e7/(16 * baud_rate);
+  // uint16_t divisor = 2.5e7/(16 * baud_rate);
+  uint16_t divisor = 13; 
   *(volatile uint8_t *)UART_REG_LC = 0x83;  // LCR: DLAB=1, 8 数据位，1 停止位，无校验；
   *(volatile uint8_t *)UART_REG_DL1 = divisor;         // DLL: 除数低8位
   *(volatile uint8_t *)UART_REG_DL2 = divisor >> 8;    // DLM: 除数高8位 

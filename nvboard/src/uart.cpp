@@ -25,9 +25,11 @@ UART::UART(SDL_Renderer *rend, int cnt, int init_val, int ct, int x, int y, int 
   SDL_SetRenderDrawColor(rend, 0x00, 0x00, 0x00, 0);
   SDL_RenderDrawLine(rend, x, y + h, x + w, y + h);
   SDL_SetRenderDrawColor(rend, 0xff, 0xff, 0xff, 0);
-
+  
   rx_sending_str = "";
   pin_poke(UART_RX, 1);
+  // NVBoard 除数 = 16 x UART16550 除数 = 16 x 13 = 208 (对应 25MHz/115200, 与 SoC loader 一致)
+  set_divisor(16*13);
 }
 
 UART::~UART() {

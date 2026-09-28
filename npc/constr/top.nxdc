@@ -1,0 +1,3 @@
+top=SimTop
+externalPins_uart0_tx UART_TX
+externalPins_uart0_rx UART_RX

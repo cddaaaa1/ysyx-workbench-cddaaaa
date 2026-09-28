@@ -8,6 +8,7 @@
 #include "../obj_dir/VSimTop.h"
 #include "minirvemu.h"
 #include "include/npc.h"
+#include <nvboard.h>  
 
 #define PROGRAM_PATH "../ysyxSoC/ready-to-run/minirv/hello-minirv-ysyxsoc.bin"
 #define MAX_CYCLES 1e8
@@ -17,6 +18,9 @@ static VerilatedVcdC *tfp = nullptr;
 static VSimTop *top = nullptr;
 
 SimState sim;
+
+// 由 build/auto_bind.cpp (auto_pin_bind.py 按 constr/top.nxdc 生成) 提供
+void nvboard_bind_all_pins(VSimTop* top);
 
 static void eval_and_dump()
 {
@@ -51,6 +55,9 @@ int main(int argc, char **argv)
     contextp->commandArgs(argc, argv);
     top = new VSimTop{contextp};
 
+    nvboard_bind_all_pins(top);
+    nvboard_init(); 
+
     const char *vcd = getenv("NPC_TRACE");
     if (vcd != nullptr && *vcd != '\0') {
         const char *depth = getenv("NPC_TRACE_DEPTH");
@@ -65,6 +72,7 @@ int main(int argc, char **argv)
     long long inst_count = 0;
 
     for (; !contextp->gotFinish(); cycle++) {
+        nvboard_update();
         sim.cycle = cycle;
         sim.retired = false;
         single_cycle();

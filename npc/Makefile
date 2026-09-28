@@ -20,11 +20,24 @@ VCD ?= dump.vcd
 SIM_TOP := SimTop
 SIM_BIN := $(BUILD_DIR)/sim-$(SIM_TOP)
 
+# ---- NVBoard ----
+ifeq ($(NVBOARD_HOME),)
+$(error NVBOARD_HOME 未设置: 先 `source ~/.bashrc` 或 export NVBOARD_HOME=...)
+endif
+NXDC_FILES    := $(NPC_HOME)/constr/top.nxdc
+SRC_AUTO_BIND := $(BUILD_DIR)/auto_bind.cpp
+include $(NVBOARD_HOME)/scripts/nvboard.mk
+
+# 约束文件 -> 引脚绑定代码 (auto_bind.cpp)
+$(SRC_AUTO_BIND): $(NXDC_FILES)
+	@mkdir -p $(dir $@)
+	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
+
 # ---- 源文件 ----
 NPC_VSRCS := $(wildcard $(VSRC_DIR)/*.v)
 SOC_VSRCS := $(shell find $(PERIP_DIR) \( -name "*.v" -o -name "*.sv" \)) $(ELABORATE_TOP)
 SIM_VSRCS := $(filter-out $(VSRC_DIR)/sim_top.v, $(NPC_VSRCS)) $(SOC_VSRCS)
-SIM_CSRC  := $(CSRC_DIR)/main.cpp $(CSRC_DIR)/dpi.cpp $(CSRC_DIR)/pmem.cpp $(CSRC_DIR)/minirvemu.cpp
+SIM_CSRC  := $(CSRC_DIR)/main.cpp $(CSRC_DIR)/dpi.cpp $(CSRC_DIR)/pmem.cpp $(CSRC_DIR)/minirvemu.cpp $(SRC_AUTO_BIND)
 VHDRS     := $(wildcard $(VSRC_DIR)/include/*.vh)
 
 # ---- 编译选项 ----
@@ -41,10 +54,12 @@ default: sim
 
 sim: $(SIM_BIN)
 
-$(SIM_BIN): $(SIM_VSRCS) $(SIM_CSRC) $(VHDRS)
+$(SIM_BIN): $(SIM_VSRCS) $(SIM_CSRC) $(VHDRS) $(NVBOARD_ARCHIVE)
 	@mkdir -p $(BUILD_DIR)
 	$(VERILATOR) $(VERILATOR_CFLAGS) --Mdir $(OBJ_DIR) -o $(abspath $(SIM_BIN)) \
-		$(SIM_VSRCS) $(SIM_CSRC) -CFLAGS "-I$(NPC_HOME)"
+		$(SIM_VSRCS) $(SIM_CSRC) $(NVBOARD_ARCHIVE) \
+		-CFLAGS "-I$(NPC_HOME) -I$(NVBOARD_HOME)/usr/include $(CXXFLAGS)" \
+		-LDFLAGS "$(LDFLAGS)"
 
 sim-run: $(SIM_BIN)
 	@$(SIM_BIN) $(IMG)

@@ -268,10 +268,38 @@
       make ARCH=minirv-ysyxsoc run
       ```
       预期输出 Hello, AbstractMachine! 
-6. 接入NVBoard 
-   - 
 
-### 其他
+### 接入NVBoard 
+1. TX接入
+   - 设置 NVBoard 的除数
+      - ysyxSOC UART: 除数(16550 寄存器) = 13
+        - 25M/115200/16 = 13.56 → 截断 13 (和 SoC 里 loader 用的值一致)
+        - 一个 bit = 16 × 13 = 208 个时钟 (16 拍 enable/bit, enable 每 13 clk 一拍)
+      - NVBoard: divisor = 16 × 13 = 208
+        - NVBoard 每 divisor 次 nvboard_update() 采 1 个 bit; nvboard_update() 每周期调一次
+        - 所以 NVBoard divisor = 1 bit 的时钟数 = 16 × UART16550除数
+        - 位置: nvboard/src/uart.cpp → set_divisor(16*13)
+      - 关系: NVBoard除数 = 16 × UART16550除数 (16 就是 16550 的 16 倍过采样因子)
+   - 仿真链路
+      - `cd am-kernels/kernels/hello && make ARCH=minirv-ysyxsoc run`
+        - AM 编译 hello → gen.sh 把 ELF 嵌进 flash 镜像模板
+        - npc.mk 的 run → `make -C npc sim-run IMG=...`
+        - 跑 npc/build/sim-SimTop (已含 NVBoard)
+   - 新建约束文件 npc/constr/top.nxdc
+   - main.cpp (npc/csrc/main.cpp)
+      - `nvboard_bind_all_pins(top); nvboard_init();`
+      - 主循环每周期 `nvboard_update();`
+   - Makefile (npc/Makefile)
+      - `include $(NVBOARD_HOME)/scripts/nvboard.mk`
+      - auto_pin_bind.py: nxdc → build/auto_bind.cpp, 加入 SIM_CSRC
+      - 链接 nvboard.a + SDL2 (-CFLAGS / -LDFLAGS)
+   - 验证:
+      ```sh
+      cd am-kernels/kernels/hello
+      make ARCH=minirv-ysyxsoc run
+      ```
+      → loading to memory region [...] + Hello, AbstractMachine! + EBREAK: GOOD TRAP
+      命令行 和 NVBoard 右上角串口终端 都有输出
 
 ## TODO 
 - 存储器表示: REF(minirvEMU) 按字存 (`uint32_t M[]`, 字节访问靠移位+掩码),
