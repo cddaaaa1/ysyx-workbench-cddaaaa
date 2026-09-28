@@ -203,6 +203,8 @@
    - riscv-tests `TEST_ISA=i` 76 PASS / 0 FAIL; cpu-tests 全 PASS; hello / dummy → HIT GOOD TRAP + Difftest PASS
    - prog_sb: 6 instructions executed in 44 cycles (IPC = 0.14)
 
+
+第四周 9.24 - 9.30
 ### ysyxSoc 
 1. 接入Soc
    - 按规范修改NPC顶层接口/修改verilator 的编译设置/修改仿真的cpp文件
@@ -224,8 +226,45 @@
      ```
 3. 运行自己编译的程序
    - 跑通dummy
-     
-4. 
+  
+4. UART除数的计算
+   - 发送端： 
+      - 时钟：50MHz
+      - 除数（分频系数）：fclk/(baud×16) = 50M/115200/16 = 27.13 → 27
+      - 分频得到的 16× 波特率参考时钟：50M/27 ≈ 1.852 MHz
+      - 每 16 拍输出 1 bit，即比特率 = 1.852M/16 = 115740（≈115200）
+   - 接受端： 
+      - 时钟：25MHz
+      - 除数（分频系数）：fclk/(baud×16) = 25M/115200/16 = 13.56 → 14（取整）
+      - 分频得到的 16× 波特率参考时钟：25M/14 ≈ 1.786 MHz
+      - 每 16 拍采样 1 bit，即比特率 = 1.786M/16 = 111607（误差 -3.12%）
+
+5. 串口的初始化和传输
+   - 寄存器 (基址 0x10000000, 8 位寄存器, 按字节访问):
+      - LCR (+3, 0x10000003): 线路控制, 帧格式 + DLAB
+      - DLL (+0, 0x10000000, DLAB=1): 除数低 8 位
+      - DLM (+1, 0x10000001, DLAB=1): 除数高 8 位
+      - THR (+0, 0x10000000, DLAB=0): 写要发送的字符
+      - LSR (+5, 0x10000005): 线路状态 (只读)
+   - 初始化 uart_init() (在 _trm_init 里, main 之前调用):
+      - 时钟 25MHz, 115200, 16 倍过采样 → divisor = 25M/115200/16 = 13.56 → 14
+      - LCR:
+        - bit 7 - DLAB - Divisor Latch Access Bit: 1 时偏移 0/1 指向 DLL/DLM, 0 时指向 THR/IER
+        - bit 1:0 - BITS: 数据位数, 11 = 8 位
+      - DLL: 除数低 8 位 = 14
+      - DLM: 除数高 8 位 = 0
+      - 顺序: 写 LCR=0x83(DLAB=1) → 写 DLL/DLM → 写 LCR=0x03(DLAB=0)
+   - 传输 putch(ch):
+      - 先读 LSR 等 bit5 (TFE - Transmit FIFO Empty) 置起: 发送 FIFO 空 (tf_count==0), 可以接收新字符
+      - 再写 THR - Transmit Holding Register(偏移 0) 把字符推入发送 FIFO
+   - 验证:
+      ```sh
+      cd am-kernels/kernels/hello
+      make ARCH=minirv-ysyxsoc run
+      ```
+      预期输出 Hello, AbstractMachine! 
+
+
 ### 其他
 
 ## TODO 
