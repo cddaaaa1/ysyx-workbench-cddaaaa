@@ -6,17 +6,15 @@
 !/nanos-lite/*
 !/navy-apps/*
 !/npc/*
+!/nvboard/*
 !Makefile
 !README.md
 !.gitignore
 !init.sh
 !/ysyx.md
 !/perf.md
-!/E/*
-!/E/nvboard/*
 /fceux-am
 /am-kernels
-# /nvboard (moved to /E/nvboard)
 
 # Generated build directories (keep source and configuration in Git).
 **/build/
@@ -24,4 +22,3 @@
 /riscv-tests
 /archbench
 /ysyxSoC
-/E/nvboard
