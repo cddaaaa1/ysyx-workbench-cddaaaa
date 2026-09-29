@@ -1,29 +1,59 @@
 # 换机器继续开发（NPC + ysyxSoC）
 
+环境变动的历史见 [`env-changes.md`](env-changes.md)。
+
 ## 1. 仓库里有什么
 
-主仓库 `git@github.com:cddaaaa1/ysyx-workbench-cddaaaa.git`（分支 `master`）只跟踪：
+主仓库 `https://github.com/cddaaaa1/ysyx-workbench-cddaaaa.git`（分支 `master`）跟踪：
 
 - `npc/`：RTL（`vsrc/`）、DPI/仿真 C++（`csrc/`，含 `csrc/include/npc.h`）、`Makefile`
-- `abstract-machine/`：AM 源码与平台脚本（含自加的 `scripts/minirv-ysyxsoc.mk`）
-- `E/nvboard/`、`ysyx.md`、`perf.md`、`init.sh`
+- `nvboard/`：NVBoard（含 `src/uart.cpp` 里的除数设置）
+- `doc/`：本目录（环境说明 + 变更记录）
+- `ysyx.md`、`perf.md`、`init.sh`、`.vscode/`
+- 5 个**子模块**：`ysyxSoC/`、`am-kernels/`、`archbench/`、`fceux-am/`、`abstract-machine/`
 
 `ysyx.md` 里有各阶段的进度记录，先看它。
 
-## 2. 不在仓库里（Mac 上要自己恢复）
+## 2. 子模块（5 个）
 
-根 `.gitignore` 是「全忽略 + 白名单」，下面这些**没有进仓库**：
+这几个外部仓库各自 fork 到 `cddaaaa1`，主仓库只记录指针，**clone 时必须带子模块**：
+
+```bash
+git clone --recurse-submodules https://github.com/cddaaaa1/ysyx-workbench-cddaaaa.git
+# 已经 clone 过的：
+git submodule update --init --recursive
+```
+
+| 子模块 | fork（分支 `ysyx`） |
+|---|---|
+| `ysyxSoC/` | https://github.com/cddaaaa1/ysyxSoC.git |
+| `am-kernels/` | https://github.com/cddaaaa1/am-kernels.git |
+| `archbench/` | https://github.com/cddaaaa1/archbench.git |
+| `fceux-am/` | https://github.com/cddaaaa1/fceux-am.git |
+| `abstract-machine/` | https://github.com/cddaaaa1/abstract-machine.git |
+
+每个子模块里 `origin` 是上游（只读），`mine` 是自己的 fork。改了东西要**先提交子仓库、再提交主仓库**：
+
+```bash
+git -C ysyxSoC commit -am "..." && git -C ysyxSoC push
+git add ysyxSoC && git commit -m "ysyxSoC: ..." && git push
+```
+
+克隆下来的子模块默认处于 **detached HEAD**，开改之前先 `git -C ysyxSoC checkout ysyx`。
+
+`ysyxSoC` 原来要手工打的补丁（`ElaborateTop.v` 里 `NPC core0 (` → `ysyx_22040000 core0 (`）
+已经进了 fork，不用再手工改。
+
+### 不在任何仓库里（每台机器各自生成）
 
 | 内容 | 怎么恢复 |
 |---|---|
-| `ysyxSoC/`（仿真的 SoC 顶层、`perip/`、`ready-to-run/minirv/{ElaborateTop.v,gen.sh,hello-minirv-ysyxsoc.bin}`） | `git clone https://github.com/OSCPU/ysyxSoC.git`，切到分支 `2607`（本机 HEAD：`a74c903 add ready-to-run for minirv`），放在工作区根目录下 |
-| `ysyxSoC` 的本地补丁（必须，否则 CPU 接不上） | `ready-to-run/minirv/ElaborateTop.v` 中 `NPC core0 (` 改成 `ysyx_22040000 core0 (`，共 1 行 |
-| `am-kernels/`（cpu-tests 等测试程序） | `git clone https://github.com/NJU-ProjectN/am-kernels.git`，切到分支 `ics2026` |
-| AM 的预编译 klib（`abstract-machine/klib/build/klib-*.a`） | `cd abstract-machine/klib && make ARCH=minirv-ysyxsoc`（`**/build/` 被忽略） |
+| AM 预编译 klib（`abstract-machine/klib/build/klib-*.a`） | `cd abstract-machine/klib && make ARCH=minirv-ysyxsoc`（`**/build/` 被忽略） |
 | 构建产物 `**/obj_dir/`、`**/build/`、镜像 `.bin/.elf` | 重新构建生成（见第 3 节） |
-| 工具链（机器本地，不在任何仓库） | 见第 4 节 |
+| 工具链 | 见第 4 节 |
 
-注意 `doc/` 本身也在忽略名单里（规则 `*`），往这里加文件要 `git add -f`。
+`riscv-tests/` 仍是普通忽略目录（没有自写改动），需要时自己 clone。
+`doc/` 已纳入跟踪，直接 `git add doc/新文件.md` 即可。
 
 ## 3. 常用命令
 
@@ -53,9 +83,27 @@ SoC 流程的镜像**不是裸 bin**：`ARCH=minirv-ysyxsoc` 会调 `ysyxSoC/rea
 | python3、make、g++ | 系统自带 | `gen.sh`、`insert-arg.py` 需要 python3 |
 | JDK 17 + mill/sbt | `~/.local/opt/temurin-17`、`sbt-1.13.0` | **只在需要重新生成 `ElaborateTop.v`** 时才要（`ysyxSoC/Makefile` 的 `verilog` 目标） |
 
-代理：本机走内网代理 `http://172.38.11.182:20170`，换机器后不可用，拉 GitHub 要换自己的网络。
+代理、`NVBOARD_HOME` 等每台机器各自设置的东西见 [`env-changes.md`](env-changes.md)。
 
-## 5. 踩过的坑
+## 5. VS Code / 编辑器
+
+共享的 `.vscode/c_cpp_properties.json` 有 `Linux ARM64` 和 `Linux x64` 两套配置，
+用命令面板的 `C/C++: Select a Configuration` 选**实际编译所在 Linux 的架构**
+（Remote SSH 时按远端选，不按本机界面所在的电脑）。
+
+- 两套都用 `/usr/bin/g++`，适用于 Ubuntu（含 WSL/虚拟机）。
+- 每台机器单独设 `YSYX_VERILATOR_INCLUDE` 为本机 Verilator 的 include 目录（里面有 `verilated.h`）：
+
+  ```sh
+  export YSYX_VERILATOR_INCLUDE=/usr/local/share/verilator/include
+  ```
+
+  它只给 IntelliSense 用；**必须被 VS Code 的远程扩展进程读到**，只在已打开的终端里 export 无效
+  —— 改完重连，必要时通过 Remote SSH 重启远端 VS Code Server。
+- `.vscode/c_cpp_properties.json` 里还残留 `E/nvboard/**`、`E/scpu/**` 等已删除路径，属历史遗留。
+- SSH 地址、桌面显示变量、机器专用的 GDB 设置放在仓库外的本机工作区或用户配置中。
+
+## 6. 踩过的坑
 
 1. **`npc/Makefile` 的 verilator 必须带 `--build`**。少了它只生成 `obj_dir/` 的 C++ 和 makefile，不会编译链接，`make` 返回成功但你跑的仍是旧二进制（症状：改了 RTL 行为不变）。现在已加 `--build -j $(shell nproc)`。
 2. 报 `No rule to make target .../csrc/pmem.h` 之类：`obj_dir/*.d` 里是删掉的头文件的旧依赖，`rm -rf obj_dir` 后重编。
@@ -63,8 +111,10 @@ SoC 流程的镜像**不是裸 bin**：`ARCH=minirv-ysyxsoc` 会调 `ysyxSoC/rea
 4. `$display` 的 `%s` 传 3 字节字符串（如 `"BAD"`）会带上一个 NUL，输出会多一个空格；用两个 `$display` 分支更稳。
 5. Verilator 警告会被当成错误（Makefile 没有 `-Wno-fatal`）：`a0 ? ...` 这种「32 位当 1 位条件」会报 `WIDTHTRUNC`，要写显式比较 `a0 == 32'd0`。
 6. `sim_retire` 这类 DPI 回调的符号名必须和 Verilog 的 `import "DPI-C" function ...` 完全一致，且 C++ 侧要 `extern "C"`。
+7. **子模块忘了推**：只推主仓库、没推子仓库时，别人 clone / `submodule update` 会报
+   `fatal: reference is not a tree: <sha>`。永远「先子后父」。
 
-## 6. 当前状态 / TODO
+## 7. 当前状态 / TODO
 
 已完成：
 
