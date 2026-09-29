@@ -302,14 +302,20 @@
       命令行 和 NVBoard 右上角串口终端 都有输出
     
   
-2. GPIO 
-   - 实现用于驱动LED的寄存器 
-      - 实现GPIO 控制器 mygpio_top_apb.v
-          -  
-      - 修改NVBoard约束文件， 将gpioout 绑到ELD
+2. GPIO 实现
+   - 控制器 `ysyxSoC/perip/gpio/mygpio_top_apb.v` (基址 0x20001000, 用 `in_paddr[3:2]` 译码)
+     | addr | 偏移 | 读出 | 写入 |
+     |---|---|---|---|
+     | 0 | 0x0 | `slave_reg[0]` | `slave_reg[0]` → `gpio_out` (16 个 LED) |
+     | 1 | 0x4 | `{16'b0, gpio_in}` | — (拨码开关, 读时直通端口) |
+     | 2 | 0x8 | `slave_reg[2]` | `slave_reg[2]` (8 位数码管, 每 4 bit 一个) |
+     - APB: `wen = psel && penable && pwrite`, `in_pready = psel && penable`; 
+   - 绑定 `npc/constr/top.nxdc`: signal 名要用 `SimTop` (`externalPins_mygpio_out` / `_in` / `_seg_0..7`)
+   - 程序
+     - 流水灯 `am-kernels/kernels/gpio-lights`
+     - 密码锁 `am-kernels/kernels/gpio-lock`
+     - 数码管 `am-kernels/kernels/gpio-seg`
 
-      - 流水灯测试程序
-   -  
   
 ## TODO 
 - 存储器表示: REF(minirvEMU) 按字存 (`uint32_t M[]`, 字节访问靠移位+掩码),
