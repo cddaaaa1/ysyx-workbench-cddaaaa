@@ -316,7 +316,37 @@
      - 密码锁 `am-kernels/kernels/gpio-lock`
      - 数码管 `am-kernels/kernels/gpio-seg`
 
-  
+3. 实现 mvendorid 和 marchid 这两个CSR 和 csrrs 指令
+   - csrrs `rd, csr, rs1` (opcode `SYSTEM`, funct3=`010`): `t = CSR; CSR = CSR | rs1; rd = t`
+     - 字段: `csr = inst[31:20]`, `rs1 = inst[19:15]`, `rd = inst[11:7]`
+     - `rs1 = x0` 时即伪指令 `csrr rd, csr` (只读不改)
+     - 两个目标 CSR 都是只读 (`mvendorid = 0xF11`, `marchid = 0xF12`), 写回被硬件忽略
+       - `mvendorid` 读 `0x79737978` ("ysyx"); `marchid` 读学号数字部分 `22040000 = 0x01504dc0`
+   - RTL 侧
+     - `define.vh`: 新增 `WB_CSR` / `FUNCT3_CSRRS` / CSR 地址与常量
+     - 新建 `csr.v`: 用 `stdreg` 承载两个固定值, `i_wen` 恒接 0 (只读), 按 `addr` 选出 `rdata`
+       - `stdreg` 是可复用的寄存器件, 放在 `npc/vsrc/libs/` (Makefile 的 `NPC_VSRCS` 加上 `libs/*.v`)
+     - `idu.v`: `OP_SYSTEM` 里区分 ebreak / csrrs; csrrs 时给出 `csr_addr = inst[31:20]`, 读 rs1、写 rd, `wb_sel = WB_CSR`
+     - `wbu.v`: 新增 `csr_rdata` 输入, `WB_CSR` 时 `wb_data = csr_rdata`
+     - 顶层 `ysyx_22040000.v`: 连 `csr_addr` / `csr_rdata`, 例化 `u_csr`
+   - 验证
+     - `am-kernels/kernels/csr`
+
+4. 添加 mcycle / mcycleh CSR
+   - 编号 (特权手册 M 模式计数器): `mcycle = 0xB00` (低 32 位), `mcycleh = 0xB80` (高 32 位)
+   - RTL 侧 (`csr.v` + `define.vh`)
+     - `define.vh`: 新增 `CSR_MCYCLE` / `CSR_MCYCLEH`
+     - `csr.v`: 一个 64 位 `stdreg` 做自增计数器 (`i_wen=1`, `i_din = mcycle + 64'd1`);
+       `rdata` 多路选择加 `0xB00 → mcycle[31:0]`, `0xB80 → mcycle[63:32]`
+     - 只读实现: 没有写端口, 手册里它们是 R/W, 这里写回被忽略 (计时够用)
+   - 验证 (`am-kernels/kernels/csr`): 连读两次 `mcycle` 打印 delta, 值确实在涨; `mcycleh = 0`
+   - AM 侧 (`am/src/riscv/npc/timer.c`)
+     - `__am_timer_uptime()`: 由读 `0x20000000` 的 RTC (pmem.cpp 取主机时间) 改为读 `mcycle`/`mcycleh`, 按 `us = cycles * 1e6 / NPC_FREQ` 换算
+     - `NPC_FREQ = 2700000` (cycles/秒): 实测 `仿真总周期数 / 宿主真实耗时` (csr 2.74M, hello 2.70M); 真机上该系数即处理器主频
+     - 验证: `am-kernels/tests/am-tests` mainargs=t (uptime 每满 1 秒打印一句)
+
+
+
 ## TODO 
 - 存储器表示: REF(minirvEMU) 按字存 (`uint32_t M[]`, 字节访问靠移位+掩码),
    NPC 侧 pmem 按字节存 (`uint8_t pmem[]`, 字访问靠拼接)。对外接口都是 32 位字 + `wmask` 字节掩码, 语义等价;
@@ -328,3 +358,4 @@
 - Difftest 在加入系统总线后就没有更新了
 - 调整csrc ; 现在分了组，有使用extern 全局变量, 考虑修
 - 兼容以前的任务
+- 改idu 

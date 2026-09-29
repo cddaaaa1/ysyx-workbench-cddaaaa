@@ -34,7 +34,7 @@ $(SRC_AUTO_BIND): $(NXDC_FILES)
 	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
 
 # ---- 源文件 ----
-NPC_VSRCS := $(wildcard $(VSRC_DIR)/*.v)
+NPC_VSRCS := $(wildcard $(VSRC_DIR)/*.v) $(wildcard $(VSRC_DIR)/libs/*.v)
 SOC_VSRCS := $(shell find $(PERIP_DIR) \( -name "*.v" -o -name "*.sv" \)) $(ELABORATE_TOP)
 SIM_VSRCS := $(filter-out $(VSRC_DIR)/sim_top.v, $(NPC_VSRCS)) $(SOC_VSRCS)
 SIM_CSRC  := $(CSRC_DIR)/main.cpp $(CSRC_DIR)/dpi.cpp $(CSRC_DIR)/pmem.cpp $(CSRC_DIR)/minirvemu.cpp $(SRC_AUTO_BIND)

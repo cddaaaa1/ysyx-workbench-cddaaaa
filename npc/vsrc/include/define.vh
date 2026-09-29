@@ -9,6 +9,7 @@
 `define WB_ALU 2'd0
 `define WB_MEM 2'd1
 `define WB_PC4 2'd2
+`define WB_CSR 2'd3
 
 // ---- 访存控制 ----
 `define LSU_NONE 3'd0
@@ -30,8 +31,18 @@
 `define FUNCT3_LBU 3'b100
 `define FUNCT3_SW  3'b010
 `define FUNCT3_SB  3'b000
+`define FUNCT3_CSRRS 3'b010
 
 `define INST_EBREAK 32'h00100073
+
+// ---- CSR 地址 ----
+`define CSR_MVENDORID 12'hf11
+`define CSR_MARCHID   12'hf12
+`define CSR_MCYCLE    12'hb00
+`define CSR_MCYCLEH   12'hb80
+
+`define MVENDORID_VAL 32'h79737978
+`define MARCHID_VAL   32'h01504dc0
 
 // ---- IFU 取指状态机 ----
 `define IFU_IDLE 1'b0

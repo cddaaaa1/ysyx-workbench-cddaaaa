@@ -47,6 +47,10 @@ module ysyx_22040000(
 	wire        gpr_we;
 	wire [1:0]  wb_sel;
 	wire        is_ebreak;
+	wire [11:0] csr_addr;
+
+	// ---- CSR -> WBU ----
+	wire [31:0] csr_rdata;
 
 	// ---- GPR -> EXU / LSU ----
 	wire [31:0] rdata1, rdata2;
@@ -118,7 +122,8 @@ module ysyx_22040000(
 		.alu_op(alu_op),
 		.is_jalr(is_jalr),
 		.lsu_op(lsu_op),
-		.is_ebreak(is_ebreak)
+		.is_ebreak(is_ebreak),
+		.csr_addr(csr_addr)
 	);
 
 	ysyx_22040000_gpr u_gpr(
@@ -141,6 +146,13 @@ module ysyx_22040000(
 		.alu_result(alu_result),
 		.jump(jump),
 		.jump_target(jump_target)
+	);
+
+	ysyx_22040000_csr u_csr(
+		.clk(clock),
+		.rst(reset),
+		.addr(csr_addr),
+		.rdata(csr_rdata)
 	);
 
 	ysyx_22040000_lsu u_lsu(
@@ -168,6 +180,7 @@ module ysyx_22040000(
 		.wb_sel(wb_sel),
 		.alu_result(alu_result),
 		.mem_rdata(mem_rdata),
+		.csr_rdata(csr_rdata),
 		.jump(jump),
 		.jump_target(jump_target),
 		.wb_data(wb_data),

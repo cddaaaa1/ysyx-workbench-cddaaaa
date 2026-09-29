@@ -15,6 +15,9 @@ module ysyx_22040000_idu(
 	// 访存阶段
 	output reg   [2:0]  lsu_op,    // NONE / LW / LBU / SW / SB
 
+	// CSR
+	output reg   [11:0] csr_addr,  // csrrs 的目标 CSR
+
 	// 其它
 	output reg          is_ebreak  // 当前指令是否 ebreak
 );
@@ -29,6 +32,7 @@ module ysyx_22040000_idu(
         alu_op    = `ALU_ADDI;
         is_jalr   = 1'b0;
         lsu_op    = `LSU_NONE;
+        csr_addr  = 12'h0;
         is_ebreak = 1'b0;
 
 		case (inst[6:0])
@@ -62,8 +66,16 @@ module ysyx_22040000_idu(
 				is_jalr = 1'b1;
 			end
 			`OP_SYSTEM: begin
-				if (inst == `INST_EBREAK)
+				if (inst == `INST_EBREAK) begin
 					is_ebreak = 1'b1;
+				end
+				else if (inst[14:12] == `FUNCT3_CSRRS) begin
+					raddr1   = inst[19:15];
+					waddr    = inst[11:7];
+					csr_addr = inst[31:20];
+					gpr_we   = 1'b1;
+					wb_sel   = `WB_CSR;
+				end
 			end
 			`OP_LOAD: begin
 				case (inst[14:12])
