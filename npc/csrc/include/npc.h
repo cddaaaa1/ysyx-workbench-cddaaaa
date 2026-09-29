@@ -3,10 +3,8 @@
 
 #include <stdint.h>
 
-// ---- 存储 ----
 #define PMEM_BASE 0x80000000u
 #define PMEM_SIZE 0x8000000
-
 #define FLASH_BASE 0x30000000u
 #define FLASH_SIZE  (16 * 1024 * 1024)
 

@@ -26,7 +26,6 @@ module ysyx_22040000(
 
 	// ---- pc_reg <-> 数据通路 ----
 	wire [31:0] next_pc;
-	wire        pc_we;
 
 	// ---- IFU ----
 	wire        ifu_valid; // 本拍 IFU 给出的 inst 是有效指令

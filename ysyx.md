@@ -204,7 +204,7 @@
    - prog_sb: 6 instructions executed in 44 cycles (IPC = 0.14)
 
 
-第四周 9.24 - 9.30
+# 第四周 9.24 - 9.30
 ### ysyxSoc 
 1. 接入Soc
    - 按规范修改NPC顶层接口/修改verilator 的编译设置/修改仿真的cpp文件
@@ -345,9 +345,78 @@
      - `NPC_FREQ = 2700000` (cycles/秒): 实测 `仿真总周期数 / 宿主真实耗时` (csr 2.74M, hello 2.70M); 真机上该系数即处理器主频
      - 验证: `am-kernels/tests/am-tests` mainargs=t (uptime 每满 1 秒打印一句)
 
+### 在SoC上进行性能评测
+1. IPC和性能表现
+   - IPC
+     - 开波形在minirv-ysyxsoc上运行hello程序
+       ```sh
+       cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/kernels/hello
+       NPC_TRACE=$(pwd)/build/hello.vcd NPC_TRACE_DEPTH=1 make ARCH=minirv-ysyxsoc run
+       ```
+     - IPC:  0.0048
+   - 综合
+     - ecc (`/home/cddaaaa/Projects/ecc/`)： 
+        - 修改 rtl/filelist.f, ecc.toml top 文件名
+        - 跑 ecc run --project npc
+        - qor_summary.rpt: FREQ = 380MHz
+   - 性能表现
+     - timer.c: #define NPC_FREQ 380000000
+     - 运行 archbench 100.blockchain 程序
+       ```sh
+       cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/archbench
+       make -C bench/100.blockchain ARCH=minirv-ysyxsoc mainargs=train run
+       ```
+     - 分数： 9 marks;min time 4422491 us  
+     - 时间来源：`bench_run()` 前后各读一次 `AM_TIMER_UPTIME`，`us = mcycle 增量 × 10⁶ / NPC_FREQ`
+       (`NPC_FREQ` 在 `am/src/riscv/npc/timer.c` 中定义，取综合频率 380 MHz)
+       - 即 min time(us) = bench消耗的 mcycle 数 / NPC_FREQ × 10⁶
+       - Marks = 10⁶ × ref_time / min time(us)，ref_time 是每个 bench 的参考分数 (blockchain train = 43)
+
+2. 校准NPC和设备的频率比例
+   - 修改仿真环境中的single_cycle(): cpuClock的频率是clock的CLK_RATIO倍 **修**
+   - 波形： cpuClock 是clock 的三倍 
+     ![cpuClock 和clock 的时序](pic/prog_sb-waveform.png)
+   - 接入ysyxSoC后的性能表现
+      - ysyxSoc 25MHz ; NPC 25MHz k*25MHz ; k = 1
+         - timer.c: #define NPC_FREQ 25000000
+         - single_cycle(): clock 和 cpuClock 同频 (k=1 时不用改 main.cpp)
+         - 100.blockchain 性能测试：
+           ```sh
+           cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/archbench
+           make -C bench/100.blockchain ARCH=minirv-ysyxsoc mainargs=train run 2>&1 \
+             | tee result/100.blockchain-k1.log | grep -aE "RESULT|Marks|Scored|Total|Simulation stopped"
+           ```
+           - 约 5 min; 记录 min time / Marks / IPC 
+      - ysyxSoc 25MHz ; NPC 25MHz k*25MHz ; k = 15
+         - timer.c: #define NPC_FREQ 375000000
+         - single_cycle(): 分频，CLK_RATIO 设为15
+         - 冒烟测试 (先确认 k>1 真能跑通; dummy 只需几秒, 卡住 = CDC 不支持该倍频比)
+           ```sh
+           cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/npc
+           ./build/sim-SimTop ../am-kernels/tests/cpu-tests/build/dummy-minirv-ysyxsoc.bin
+           ```
+         - 100.blockchain 性能测试： (k>1 跑通后再跑, 约 75 min, 放后台)
+           ```sh
+           cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/archbench
+           unset NPC_TRACE NPC_TRACE_DEPTH NPC_TRACE_CYCLES
+           nohup make -C bench/100.blockchain ARCH=minirv-ysyxsoc mainargs=train run \
+                 > result/100.blockchain-k15.log 2>&1 &
+           tail -f result/100.blockchain-k15.log
+           ```
+           - 记录 min time / Marks / IPC
+3. 仿真效率
+   - 
+
+3. 核算性能和面积成本
+  - 面积 CELLA = 16503 um2 = 0.016503 mm2, 流片 30000 元/mm2
+    → NPC 流片费用 = 495 元
+  - 面积优化 (YOSYS_SYNTH_STRATEGY="AREA 3", ecc run --overwrite --project npc): CELLA = 15705 um2
+    → 流片费用 ≈ 471 元 
 
 
-## TODO 
+
+
+# TODO 
 - 存储器表示: REF(minirvEMU) 按字存 (`uint32_t M[]`, 字节访问靠移位+掩码),
    NPC 侧 pmem 按字节存 (`uint8_t pmem[]`, 字访问靠拼接)。对外接口都是 32 位字 + `wmask` 字节掩码, 语义等价;
 - 过一遍minirv代码 + 批量运行程序
@@ -359,3 +428,4 @@
 - 调整csrc ; 现在分了组，有使用extern 全局变量, 考虑修
 - 兼容以前的任务
 - 改idu 
+- 波形开关: 保留现用的运行期 env (`NPC_TRACE`) 方案, 弃用编译期 `IFDEF(TRACE_ON)` (后者改 `-D`/`Makefile` 不触发重编, 要先 `make -C npc sim-clean`)
