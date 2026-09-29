@@ -7,21 +7,15 @@
       "cppStandard": "c++17",
       "intelliSenseMode": "linux-gcc-arm64",
       "includePath": [
-        "/usr/local/share/verilator/include/vltstd",
-        "${workspaceFolder}/E/nvboard/usr/include",
-        "${workspaceFolder}/E/nvboard/include",
-        "${workspaceFolder}/E/nvboard/nju-projects/**",
-        "${workspaceFolder}/E/nvboard/nju-projects/**/obj_dir",
-        "${workspaceFolder}/E/scpu",
-        "${workspaceFolder}/E/scpu/obj_dir",
+        "${workspaceFolder}/npc",
+        "${workspaceFolder}/npc/csrc/include",
         "${workspaceFolder}/npc/obj_dir/**",
+        "${workspaceFolder}/nvboard/include",
+        "${workspaceFolder}/nvboard/usr/include",
         "/usr/include/SDL2",
         "${env:YSYX_VERILATOR_INCLUDE}",
         "/usr/local/share/verilator/include",
         "/usr/local/share/verilator/include/vltstd"
-      ],
-      "defines": [
-        "TOP_NAME=Vtop"
       ]
     },
     {
@@ -31,21 +25,15 @@
       "cppStandard": "c++17",
       "intelliSenseMode": "linux-gcc-x64",
       "includePath": [
-        "${workspaceFolder}/E/nvboard/usr/include",
-        "${workspaceFolder}/E/nvboard/include",
-        "${workspaceFolder}/E/nvboard/nju-projects/**",
-        "${workspaceFolder}/E/nvboard/nju-projects/**/obj_dir",
-        "${workspaceFolder}/E/scpu",
-        "${workspaceFolder}/E/scpu/obj_dir",
-        "${workspaceFolder}/npc/obj_dir",
         "${workspaceFolder}/npc",
+        "${workspaceFolder}/npc/csrc/include",
+        "${workspaceFolder}/npc/obj_dir/**",
+        "${workspaceFolder}/nvboard/include",
+        "${workspaceFolder}/nvboard/usr/include",
         "/usr/include/SDL2",
         "${env:YSYX_VERILATOR_INCLUDE}",
         "/usr/local/share/verilator/include",
         "/usr/local/share/verilator/include/vltstd"
-      ],
-      "defines": [
-        "TOP_NAME=Vtop"
       ]
     }
   ],

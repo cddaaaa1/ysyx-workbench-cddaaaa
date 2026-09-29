@@ -11,7 +11,5 @@ bash init.sh subproject-name
 
 ## 环境 / 换机器
 
-跨机器的环境配置、工具链、踩坑都放在 `doc/`：
-
-- [`doc/env-changes.md`](doc/env-changes.md)：环境配置变更记录（机器之间对齐用）
-- [`doc/dev-env.md`](doc/dev-env.md)：换机器继续开发的完整说明
+跨机器的环境配置、工具链、踩坑都放在 [`doc/dev-env.md`](doc/dev-env.md)：
+机器一览、子模块怎么拉、常用命令、工具链、每台机器要各自设什么、变更记录。
