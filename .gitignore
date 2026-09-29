@@ -13,12 +13,10 @@
 !init.sh
 !/ysyx.md
 !/perf.md
-/fceux-am
-/am-kernels
+# 外部仓库：ysyxSoC / am-kernels / archbench / fceux-am / abstract-machine 已注册为 submodule
+/riscv-tests
 
 # Generated build directories (keep source and configuration in Git).
 **/build/
 **/obj_dir/
-/riscv-tests
-/archbench
-/ysyxSoC
+

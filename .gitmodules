@@ -1,0 +1,15 @@
+[submodule "ysyxSoC"]
+	path = ysyxSoC
+	url = https://github.com/cddaaaa1/ysyxSoC.git
+[submodule "am-kernels"]
+	path = am-kernels
+	url = https://github.com/cddaaaa1/am-kernels.git
+[submodule "archbench"]
+	path = archbench
+	url = https://github.com/cddaaaa1/archbench.git
+[submodule "fceux-am"]
+	path = fceux-am
+	url = https://github.com/cddaaaa1/fceux-am.git
+[submodule "abstract-machine"]
+	path = abstract-machine
+	url = https://github.com/cddaaaa1/abstract-machine.git
