@@ -52,4 +52,12 @@
 `define MEM_IDLE 1'b0
 `define MEM_WAIT 1'b1
 `define READ_DELAY_MIN 2
+
+
+`ifdef YSYXSOC
+`define PC_RESET 32'h30000000   
+`else
+`define PC_RESET 32'h80000000   
+`endif
+
 `endif

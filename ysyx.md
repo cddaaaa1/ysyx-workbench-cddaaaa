@@ -351,7 +351,7 @@
      - 开波形在minirv-ysyxsoc上运行hello程序
        ```sh
        cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/kernels/hello
-       NPC_TRACE=$(pwd)/build/hello.vcd NPC_TRACE_DEPTH=1 make ARCH=minirv-ysyxsoc run
+       make ARCH=minirv-ysyxsoc WAVE=1 run     # VCD 固定写到当前目录的 dump.vcd
        ```
      - IPC:  0.0048
    - 综合
@@ -377,8 +377,7 @@
    - 测试
      ```sh
       cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/tests/cpu-tests
-      NPC_TRACE=$(pwd)/build/dummy.vcd NPC_TRACE_DEPTH=1 NPC_TRACE_CYCLES=20000 \
-        timeout 60 make ARCH=minirv-ysyxsoc ALL=dummy run
+      timeout 60 make ARCH=minirv-ysyxsoc ALL=dummy MAXCYCLE=20000 WAVE=1 run   # VCD: ./dump.vcd
      ```
       - CLK_RAITO = 1: cpuClock 和 clock 同频； cpu-test-dummy 能跑通
       - CLK_RAITO = 3：cpuClock 是clock 的三倍 
@@ -412,8 +411,27 @@
            tail -f result/100.blockchain-k15.log
            ```
            - 记录 min time / Marks / IPC
-3. 仿真效率
-   - 
+3. NPC 和 ysyxSoc 单独仿真
+   - Makefile: 加 `ARCH ?=` 分支决定 TOPNAME / VSRCS / Verilog 宏 / IMG / 是否链 NVBoard; `OBJ_DIR` 移到 `build/obj_dir` 且 verilate 前 `rm -rf`; `SIM_CSRC`(滤掉 `emu_main.cpp`/`minirvemu.cpp`) 与 `HDRS`(从 `INC_FLAGS` 的 `-I` 目录派生) 改成自动收集; 新增 `WAVE=1`→`-DTRACE_ON`、`MAXCYCLE=N`→`-DDEBUG_TIME -DMAX_CYCLE=N` 两个开关.
+   - main.cpp: 顶层类型改由 `npc.h` 的 `using TOP = ...` 按 `YSYXSOC` 选 `VSimTop` / `Vysyx_22040000`; `flash_load` / `cpuClock` 按流程分叉; `tfp` 改成无条件 `new` + `IFDEF(TRACE_ON, ...)`; 周期上限写成 `IFDEF(DEBUG_TIME, && cycle < MAX_CYCLE)`, 不传就不限制.
+   - RTL: `ysyx_22040000.v` 的 SimpleBus 端口改成逗号前置的 ifdef 写法、非 SoC 分支把 `io_*` 声明成内部 wire 并例化 `dpic_mem` (模块体一行不用改); `define.vh` 按流程给 `PC_RESET` = 0x30000000 / 0x80000000.
+   - AM: `scripts/minirv-npc.mk` (`NPC_FREQ ?= 380000000`) 与 `minirv-ysyxsoc.mk` (`NPC_FREQ := 25000000`) 用 `-D` 传频率、`timer.c` 加 `#ifndef NPC_FREQ` 兜底; `platform/npc.mk` 的 `run` 显式传 `ARCH=$(ARCH)`.
+
+   - 验证(E7 测试汇总): npc / soc 两套流程都要能分别仿真. 命令用 `make -C <绝对路径>` 形式, 从任意目录都能跑
+     | # | 测试 | npc 流程 | soc 流程 |
+     |---|---|---|---|
+     | A1 | 冒烟 dummy | ✔`make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/npc sim-run ARCH=minirv-npc` | ✔`make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/npc sim-run ARCH=minirv-ysyxsoc IMG=/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/tests/cpu-tests/build/dummy-minirv-ysyxsoc.bin` |
+     | B1 | cpu-tests 全量(36 个) | ✔`make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/tests/cpu-tests ARCH=minirv-npc run` | 同左, 改 `ARCH=minirv-ysyxsoc` |
+     | B2 | cpu-tests 单个 | ✔同 B1 加 `ALL=dummy` | 同 B1 加 `ALL=dummy` |
+     | B3 | hello (串口输出) | 卡住(见下) | `make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/kernels/hello ARCH=minirv-ysyxsoc run` |
+     | B4 | am-tests (键盘/定时器) | 需 NVBoard, 跑不了 |✔ `make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/tests/am-tests ARCH=minirv-ysyxsoc mainargs=t run` |
+     | C1 | 波形 | `make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/npc sim-wave ARCH=minirv-npc` | 同左, 改 `ARCH=minirv-ysyxsoc` |
+     | C2 | NVBoard | 无 | `make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/npc sim-run ARCH=minirv-ysyxsoc BOARD=1 IMG=/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/kernels/hello/build/hello-minirv-ysyxsoc.bin` |
+     | C3 | 性能 k=1 | 无意义 | `make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/archbench/bench/100.blockchain ARCH=minirv-ysyxsoc mainargs=train run` |
+     | C4 | 性能 k=15 | 无意义 | main.cpp `CLK_RATIO 15` + `NPC_FREQ=375000000` (已知 k>1 卡死) |
+     - 注意： 
+       - 串口: soc 走真 UART16550, 正常; npc 流程 `dpi.cpp` 的 UART 状态寄存器地址与 `trm.c` 对不上 → `putch` 死循环, 会 printf 的程序(如 hello)在 npc 流程跑不通
+       - cpu-tests 的 PASS/FAIL 只看 make 返回码, 而 sim 恒返回 0, 所以不能用来判定 GOOD/BAD TRAP, 要自己 grep 输出
 
 3. 核算性能和面积成本
   - 面积 CELLA = 16503 um2 = 0.016503 mm2, 流片 30000 元/mm2
@@ -432,5 +450,4 @@
 - 调整csrc ; 现在分了组，有使用extern 全局变量, 考虑修
 - 兼容以前的任务
 - 改idu 
-- 波形开关: 保留现用的运行期 env (`NPC_TRACE`) 方案, 弃用编译期 `IFDEF(TRACE_ON)` (后者改 `-D`/`Makefile` 不触发重编, 要先 `make -C npc sim-clean`)
 - CLK_RATIO > 1 时跑不通(实测 k=2/k=3 都挂, 留待以后解决): 慢时钟域设备的时间被放大 k 倍 —— PSRAM 上电序列(50 000 个 `clock` 周期, k=3 时 = 150 000 个 CPU 周期)期间 loader 就发出第一个 PSRAM 写, 该访问要等 ~230 000 个 CPU 周期才完成, 整条 AXI 链路(取指/访存)在此期间全冻结, 恢复后 CPU 的 PC 已落到非法地址(`0xFEC0007A`)跑飞; 分频波形形状/相位、倍频比大小、组合环(Verilator lint)、CDC 相位断言(`--assert`)均已排除。

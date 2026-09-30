@@ -1,23 +1,38 @@
 `include "define.vh"
-// CPU 顶层. 端口的方向 / 命名 / 位宽完全按
-// ysyxSoC/ready-to-run/minirv/cpu-interface.md 的规范: clock / reset + SimpleBus
-// pc / inst / ebreak / misalign 只给仿真环境看, 不再是端口, 由 sim_top 用层次引用读
 module ysyx_22040000(
 	input  clock,
-	input  reset,
-	output        io_ifu_reqValid,
-	output [31:0] io_ifu_addr,
-	input         io_ifu_respValid,
-	input  [31:0] io_ifu_rdata,
-	output        io_lsu_reqValid,
-	output [31:0] io_lsu_addr,
-	output [1:0]  io_lsu_size,
-	output        io_lsu_wen,
-	output [31:0] io_lsu_wdata,
-	output [3:0]  io_lsu_wmask,
-	input         io_lsu_respValid,
-	input  [31:0] io_lsu_rdata
+	input  reset
+`ifdef YSYXSOC
+    ,output        io_ifu_reqValid
+    ,output [31:0] io_ifu_addr
+    ,input         io_ifu_respValid
+    ,input  [31:0] io_ifu_rdata
+    ,output        io_lsu_reqValid
+    ,output [31:0] io_lsu_addr
+    ,output [1:0]  io_lsu_size
+    ,output        io_lsu_wen
+    ,output [31:0] io_lsu_wdata
+    ,output [3:0]  io_lsu_wmask
+    ,input         io_lsu_respValid
+    ,input  [31:0] io_lsu_rdata
+`endif
 );
+
+`ifndef YSYXSOC
+	// 非 SoC 流程: io_* 退化成内部线, 接到下面的 dpic_mem
+	wire        io_ifu_reqValid;
+	wire [31:0] io_ifu_addr;
+	wire        io_ifu_respValid;
+	wire [31:0] io_ifu_rdata;
+	wire        io_lsu_reqValid;
+	wire [31:0] io_lsu_addr;
+	wire [1:0]  io_lsu_size;
+	wire        io_lsu_wen;
+	wire [31:0] io_lsu_wdata;
+	wire [3:0]  io_lsu_wmask;
+	wire        io_lsu_respValid;
+	wire [31:0] io_lsu_rdata;
+`endif
 	// ---- 观察信号: 只给仿真环境用, 不对外连接 ----
 	wire [31:0] pc;        // pc_reg 输出的当前 PC
 	wire [31:0] inst;      // IFU 输出的当前指令
@@ -186,6 +201,25 @@ module ysyx_22040000(
 		.next_pc(next_pc)
 	);
 
+`ifndef YSYXSOC
+    dpic_mem u_dpic_mem (
+        .clk(clock),
+        .rst(reset),
+        .ifu_addr(io_ifu_addr),
+        .ifu_reqValid(io_ifu_reqValid),
+        .ifu_respValid(io_ifu_respValid),
+        .ifu_rdata(io_ifu_rdata),
+        .lsu_addr(io_lsu_addr),
+        .lsu_wdata(io_lsu_wdata),
+        .lsu_wmask(io_lsu_wmask),
+        .lsu_size(io_lsu_size),
+        .lsu_wen(io_lsu_wen),
+        .lsu_reqValid(io_lsu_reqValid),
+        .lsu_respValid(io_lsu_respValid),
+        .lsu_rdata(io_lsu_rdata)
+    );
+`endif
+
 `ifndef SYNTHESIS
 
 	import "DPI-C" function void sim_retire(input int pc, input int inst);
@@ -193,7 +227,6 @@ module ysyx_22040000(
 		if (commit) sim_retire(pc, inst);
 	end
 
-	// ebreak 结束程序: a0 是 halt(code) 的返回码
 	wire [31:0] a0 = u_gpr.rf[10];
 
 	always @(posedge clock) begin

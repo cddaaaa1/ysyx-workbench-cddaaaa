@@ -2,6 +2,18 @@
 #define NPC_H
 
 #include <stdint.h>
+#ifdef YSYXSOC
+#include <VSimTop.h>
+using TOP = VSimTop;
+#else
+#include <Vysyx_22040000.h>
+using TOP = Vysyx_22040000;
+#endif
+#ifdef NVBOARD
+#include <nvboard.h>
+#endif
+
+#include "macro.h"
 
 #define PMEM_BASE 0x80000000u
 #define PMEM_SIZE 0x8000000
