@@ -360,7 +360,7 @@
         - 跑 ecc run --project npc
         - qor_summary.rpt: FREQ = 380MHz
    - 性能表现
-     - timer.c: #define NPC_FREQ 380000000
+     - timer.c: NPC_FREQ 380000000
      - 运行 archbench 100.blockchain 程序
        ```sh
        cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/archbench
@@ -374,13 +374,21 @@
 
 2. 校准NPC和设备的频率比例
    - 修改仿真环境中的single_cycle(): cpuClock的频率是clock的CLK_RATIO倍 **修**
-   - 波形： cpuClock 是clock 的三倍 
-     ![cpuClock 和clock 的时序](pic/prog_sb-waveform.png)
+   - 测试
+     ```sh
+      cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/tests/cpu-tests
+      NPC_TRACE=$(pwd)/build/dummy.vcd NPC_TRACE_DEPTH=1 NPC_TRACE_CYCLES=20000 \
+        timeout 60 make ARCH=minirv-ysyxsoc ALL=dummy run
+     ```
+      - CLK_RAITO = 1: cpuClock 和 clock 同频； cpu-test-dummy 能跑通
+      - CLK_RAITO = 3：cpuClock 是clock 的三倍 
+        ![cpuClock 和clock 的时序](pic/cpu_cpuClock.png)
+  
    - 接入ysyxSoC后的性能表现
       - ysyxSoc 25MHz ; NPC 25MHz k*25MHz ; k = 1
-         - timer.c: #define NPC_FREQ 25000000
+         - timer.c: NPC_FREQ 25000000
          - single_cycle(): clock 和 cpuClock 同频 (k=1 时不用改 main.cpp)
-         - 100.blockchain 性能测试：
+         - 100.blockchain 性能测试：**待测**
            ```sh
            cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/archbench
            make -C bench/100.blockchain ARCH=minirv-ysyxsoc mainargs=train run 2>&1 \
@@ -388,14 +396,14 @@
            ```
            - 约 5 min; 记录 min time / Marks / IPC 
       - ysyxSoc 25MHz ; NPC 25MHz k*25MHz ; k = 15
-         - timer.c: #define NPC_FREQ 375000000
+         - timer.c: NPC_FREQ 375000000
          - single_cycle(): 分频，CLK_RATIO 设为15
          - 冒烟测试 (先确认 k>1 真能跑通; dummy 只需几秒, 卡住 = CDC 不支持该倍频比)
            ```sh
            cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/npc
            ./build/sim-SimTop ../am-kernels/tests/cpu-tests/build/dummy-minirv-ysyxsoc.bin
            ```
-         - 100.blockchain 性能测试： (k>1 跑通后再跑, 约 75 min, 放后台)
+         - 100.blockchain 性能测试：**待测** (k>1 跑通后再跑, 约 75 min, 放后台)
            ```sh
            cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/archbench
            unset NPC_TRACE NPC_TRACE_DEPTH NPC_TRACE_CYCLES
@@ -413,19 +421,16 @@
   - 面积优化 (YOSYS_SYNTH_STRATEGY="AREA 3", ecc run --overwrite --project npc): CELLA = 15705 um2
     → 流片费用 ≈ 471 元 
 
-
-
-
 # TODO 
-- 存储器表示: REF(minirvEMU) 按字存 (`uint32_t M[]`, 字节访问靠移位+掩码),
-   NPC 侧 pmem 按字节存 (`uint8_t pmem[]`, 字访问靠拼接)。对外接口都是 32 位字 + `wmask` 字节掩码, 语义等价;
+- ~~存储器表示: REF(minirvEMU) 按字存 (`uint32_t M[]`, 字节访问靠移位+掩码), NPC 侧 pmem 按字节存 (`uint8_t pmem[]`, 字访问靠拼接)。对外  接口都是 32 位字 + `wmask` 字节掩码, 语义等价;~~
 - 过一遍minirv代码 + 批量运行程序
 - 学习 Chisel 
 - ~~archbench 现在只能跑通 11/21,其余十个有编译问题 （ai 修了~~
 - archbench 303 无结果： 303.cproc 是编译器，启动就必须 fopen("input/train-Block.i") 读源文件，而 minirv-npc 平台上 FILE 这一层不可用（klib 是预编译且混淆的 fileio.o，本地没有 fileio.c 源码），于是 AM Panic: unsupport FILE → halt(1) → HIT BAD TRAP: a0=1，程序没跑到打印 [RESULT] 就结束了，所以记 0 分、显示"无结果"。
 - ~~ebreak 改回 DPI-c （改成直接在RTL 里面 $finish）~~
-- Difftest 在加入系统总线后就没有更新了
+- ~~Difftest 在加入系统总线后就没有更新了~~
 - 调整csrc ; 现在分了组，有使用extern 全局变量, 考虑修
 - 兼容以前的任务
 - 改idu 
 - 波形开关: 保留现用的运行期 env (`NPC_TRACE`) 方案, 弃用编译期 `IFDEF(TRACE_ON)` (后者改 `-D`/`Makefile` 不触发重编, 要先 `make -C npc sim-clean`)
+- CLK_RATIO > 1 时跑不通(实测 k=2/k=3 都挂, 留待以后解决): 慢时钟域设备的时间被放大 k 倍 —— PSRAM 上电序列(50 000 个 `clock` 周期, k=3 时 = 150 000 个 CPU 周期)期间 loader 就发出第一个 PSRAM 写, 该访问要等 ~230 000 个 CPU 周期才完成, 整条 AXI 链路(取指/访存)在此期间全冻结, 恢复后 CPU 的 PC 已落到非法地址(`0xFEC0007A`)跑飞; 分频波形形状/相位、倍频比大小、组合环(Verilator lint)、CDC 相位断言(`--assert`)均已排除。

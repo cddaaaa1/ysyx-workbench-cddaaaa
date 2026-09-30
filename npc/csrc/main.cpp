@@ -33,16 +33,13 @@ static void eval_and_dump()
     if (tfp) tfp->dump(contextp->time());
 }
 
-// void single_cycle() {
-//   top->cpuClock = 0; eval_and_dump();
-//   top->clock = (clk_cnt >= CLK_RATIO / 2); 
-//   top->cpuClock = 1; eval_and_dump();
-//   if (++clk_cnt == CLK_RATIO) clk_cnt = 0;
-// }
-
+// clock 周期 = CLK_RATIO 个 cpuClock 周期, 占空比 50%
+// 以 cpuClock 半拍为单位计数, 每 CLK_RATIO 个半拍翻转一次 clock
 void single_cycle() {
-  top->clock = 0; top->cpuClock = 0; eval_and_dump();
-  top->clock = 1; top->cpuClock = 1; eval_and_dump();
+  top->cpuClock = 0; eval_and_dump();
+  if (++clk_cnt >= CLK_RATIO) { clk_cnt = 0; top->clock = !top->clock; }
+  top->cpuClock = 1; eval_and_dump();
+  if (++clk_cnt >= CLK_RATIO) { clk_cnt = 0; top->clock = !top->clock; }
 }
 
 static void reset(int cycles)
