@@ -99,13 +99,17 @@ sim-wave:
 wave:
 	gtkwave $(VCD) &
 
+lint:
+	$(VERILATOR) --lint-only -Wall -Wno-DECLFILENAME $(INC_FLAGS) $(VDEFINES) \
+		--top-module ysyx_22040000 $(NPC_VSRCS)
+
 sim-clean:
 	rm -rf $(OBJ_DIR) $(SIM_BIN) $(VCD)
 
 clean:
 	rm -rf $(BUILD_DIR) $(VCD)
 
-.PHONY: default sim sim-run run sim-wave wave sim-clean clean
+.PHONY: default sim sim-run run sim-wave wave lint sim-clean clean
 
 
 

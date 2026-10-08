@@ -439,6 +439,29 @@
   - 面积优化 (YOSYS_SYNTH_STRATEGY="AREA 3", ecc run --overwrite --project npc): CELLA = 15705 um2
     → 流片费用 ≈ 471 元 
 
+### 前端准备工作
+
+1. 开放NPC的地址空间
+  - NPC以开放所有地址空间
+
+2. 去除下沿时钟
+  - 无下沿时钟
+
+3. 去除锁存器
+  - 
+   ```sh
+    cd ~/Projects/ecc/npc/runs/default/Synthesis_yosys/output
+    zcat npc_Synthesis.v.gz | grep -c "LAT"    
+   ```
+  - LAT 为 0； 无锁存器
+
+4. Verilog代码静态检查
+  - `npc/Makefile` 新增 `lint` 目标: `make lint ARCH=minirv-npc` (或 `minirv-ysyxsoc`)
+  - 仅剩 UNUSEDSIGNAL,确认后保留: `misalign` (供仿真环境使用) / `lsu_size` (仅 npc 流程, `dpic_mem` 用不到)
+
+5. 触发器的复位和四值仿真
+  - 
+
 # TODO 
 - ~~存储器表示: REF(minirvEMU) 按字存 (`uint32_t M[]`, 字节访问靠移位+掩码), NPC 侧 pmem 按字节存 (`uint8_t pmem[]`, 字访问靠拼接)。对外  接口都是 32 位字 + `wmask` 字节掩码, 语义等价;~~
 - 过一遍minirv代码 + 批量运行程序

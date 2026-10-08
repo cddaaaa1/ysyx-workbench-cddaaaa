@@ -19,7 +19,6 @@ module ysyx_22040000(
 );
 
 `ifndef YSYXSOC
-	// 非 SoC 流程: io_* 退化成内部线, 接到下面的 dpic_mem
 	wire        io_ifu_reqValid;
 	wire [31:0] io_ifu_addr;
 	wire        io_ifu_respValid;
@@ -33,11 +32,9 @@ module ysyx_22040000(
 	wire        io_lsu_respValid;
 	wire [31:0] io_lsu_rdata;
 `endif
-	// ---- 观察信号: 只给仿真环境用, 不对外连接 ----
-	wire [31:0] pc;        // pc_reg 输出的当前 PC
-	wire [31:0] inst;      // IFU 输出的当前指令
-	reg         ebreak;    // 执行到 ebreak 时置 1, 供仿真环境判断程序结束
-	reg         misalign;  // lw/sw 地址未 4 字节对齐时置 1, 供仿真环境报错
+	wire [31:0] pc;        
+	wire [31:0] inst;         
+	reg         misalign; 
 
 	// ---- pc_reg <-> 数据通路 ----
 	wire [31:0] next_pc;
@@ -94,15 +91,6 @@ module ysyx_22040000(
 		if (reset) misalign <= 1'b0;
 		else       misalign <= lsu_misalign;
 	end
-
-	// always @(posedge clock) begin
-	// 	if (reset) begin
-	// 		ebreak <= 1'b0;
-	// 	end
-	// 	else if (is_ebreak && commit && !ebreak) begin
-	// 		ebreak <= 1'b1;
-	// 	end
-	// end
 
 	ysyx_22040000_pc_reg u_pc_reg(
 		.clk(clock),
