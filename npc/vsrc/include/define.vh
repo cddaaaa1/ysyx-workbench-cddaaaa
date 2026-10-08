@@ -53,6 +53,14 @@
 `define MEM_WAIT 1'b1
 `define READ_DELAY_MIN 2
 
+// ---- 存储器访问: Verilator 走 DPI-C, iverilog 走 VPI 注册的系统函数 ----
+`ifdef __ICARUS__
+`define PMEM_READ(a)      $pmem_read(a)
+`define PMEM_WRITE(a,d,m) $pmem_write(a,d,m)
+`else
+`define PMEM_READ(a)      pmem_read(a)
+`define PMEM_WRITE(a,d,m) pmem_write(a,d,m)
+`endif
 
 `ifdef YSYXSOC
 `define PC_RESET 32'h30000000   

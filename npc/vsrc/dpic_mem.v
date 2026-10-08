@@ -15,8 +15,10 @@ module dpic_mem(
     output reg [31:0] lsu_rdata,
     output reg lsu_respValid
 );
+`ifndef __ICARUS__
     import "DPI-C" function int  pmem_read (input int raddr);
     import "DPI-C" function void pmem_write(input int waddr, input int wdata, input byte wmask);
+`endif
 
     reg [31:0] ifu_addr_r;
     reg [31:0] ifu_counter;
@@ -53,7 +55,7 @@ module dpic_mem(
             end
             else begin
                 if (ifu_counter == ifu_delay - 32'd1) begin
-                    ifu_rdata     <= pmem_read(ifu_addr_r);
+                    ifu_rdata     <= `PMEM_READ(ifu_addr_r);
                     ifu_respValid <= 1'b1;
                     ifu_state     <= `MEM_IDLE;
                 end
@@ -73,7 +75,7 @@ module dpic_mem(
             lsu_respValid <= 1'b0;
             if (lsu_state == `MEM_IDLE) begin
                 if (lsu_reqValid) begin
-                    if (lsu_wen) pmem_write(lsu_addr, lsu_wdata, {4'h0, lsu_wmask});
+                    if (lsu_wen) `PMEM_WRITE(lsu_addr, lsu_wdata, {4'h0, lsu_wmask});
                     else begin
                         lsu_addr_r  <= lsu_addr;
                         lsu_counter <= 32'd1;
@@ -84,7 +86,7 @@ module dpic_mem(
             end
             else begin
                 if (lsu_counter == lsu_delay - 32'd1) begin
-                    lsu_rdata     <= pmem_read(lsu_addr_r);
+                    lsu_rdata     <= `PMEM_READ(lsu_addr_r);
                     lsu_respValid <= 1'b1;
                     lsu_state     <= `MEM_IDLE;
                 end

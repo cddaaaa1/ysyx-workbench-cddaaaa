@@ -416,6 +416,13 @@
    - main.cpp: 顶层类型改由 `npc.h` 的 `using TOP = ...` 按 `YSYXSOC` 选 `VSimTop` / `Vysyx_22040000`; `flash_load` / `cpuClock` 按流程分叉; `tfp` 改成无条件 `new` + `IFDEF(TRACE_ON, ...)`; 周期上限写成 `IFDEF(DEBUG_TIME, && cycle < MAX_CYCLE)`, 不传就不限制.
    - RTL: `ysyx_22040000.v` 的 SimpleBus 端口改成逗号前置的 ifdef 写法、非 SoC 分支把 `io_*` 声明成内部 wire 并例化 `dpic_mem` (模块体一行不用改); `define.vh` 按流程给 `PC_RESET` = 0x30000000 / 0x80000000.
    - AM: `scripts/minirv-npc.mk` (`NPC_FREQ ?= 380000000`) 与 `minirv-ysyxsoc.mk` (`NPC_FREQ := 25000000`) 用 `-D` 传频率、`timer.c` 加 `#ifndef NPC_FREQ` 兜底; `platform/npc.mk` 的 `run` 显式传 `ARCH=$(ARCH)`.
+   - csrc/pmem.cpp: `pmem_read()` / `pmem_write()` 支持 UART16550 (npc 流程没有真 UART, 用行为模型顶替)
+     - 译码: `addr` 高位等于 `0x10000000`, 具体寄存器由 `addr[2:0]` 选 —— **不能先把地址对齐到 4 字节**
+     - 写: `+3` (LC) 记下 DLAB 位; `+0` (TX) 且 DLAB=0 时 `fputc(ch, stderr)` 把字符打到终端
+     - 读: `+5` (LS) 返回 `0x20` (TFE, 发送队列空), 其余寄存器读 0
+     - 关键: 返回值要左移 `addr[1:0] * 8` 放到对应的字节位. LSU 是按这个偏移从总线数据里取字节的,
+       直接放低位会让 `lbu 0x10000005` 读到 0, `putch` 等 TFE 死循环, 程序卡住
+
 
    - 验证(E7 测试汇总): npc / soc 两套流程都要能分别仿真. 命令用 `make -C <绝对路径>` 形式, 从任意目录都能跑
      | # | 测试 | npc 流程 | soc 流程 |
@@ -423,14 +430,14 @@
      | A1 | 冒烟 dummy | ✔`make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/npc sim-run ARCH=minirv-npc` | ✔`make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/npc sim-run ARCH=minirv-ysyxsoc IMG=/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/tests/cpu-tests/build/dummy-minirv-ysyxsoc.bin` |
      | B1 | cpu-tests 全量(36 个) | ✔`make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/tests/cpu-tests ARCH=minirv-npc run` | 同左, 改 `ARCH=minirv-ysyxsoc` |
      | B2 | cpu-tests 单个 | ✔同 B1 加 `ALL=dummy` | 同 B1 加 `ALL=dummy` |
-     | B3 | hello (串口输出) | 卡住(见下) | `make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/kernels/hello ARCH=minirv-ysyxsoc run` |
+     | B3 | hello (串口输出) | ✔`make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/kernels/hello ARCH=minirv-npc run` | ✔`make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/kernels/hello ARCH=minirv-ysyxsoc run` |
      | B4 | am-tests (键盘/定时器) | 需 NVBoard, 跑不了 |✔ `make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/tests/am-tests ARCH=minirv-ysyxsoc mainargs=t run` |
      | C1 | 波形 | `make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/npc sim-wave ARCH=minirv-npc` | 同左, 改 `ARCH=minirv-ysyxsoc` |
      | C2 | NVBoard | 无 | `make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/npc sim-run ARCH=minirv-ysyxsoc BOARD=1 IMG=/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/kernels/hello/build/hello-minirv-ysyxsoc.bin` |
      | C3 | 性能 k=1 | 无意义 | `make -C /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/archbench/bench/100.blockchain ARCH=minirv-ysyxsoc mainargs=train run` |
      | C4 | 性能 k=15 | 无意义 | main.cpp `CLK_RATIO 15` + `NPC_FREQ=375000000` (已知 k>1 卡死) |
      - 注意： 
-       - 串口: soc 走真 UART16550, 正常; npc 流程 `dpi.cpp` 的 UART 状态寄存器地址与 `trm.c` 对不上 → `putch` 死循环, 会 printf 的程序(如 hello)在 npc 流程跑不通
+       - 串口: soc 走真 UART16550; npc 流程由 `csrc/pmem.cpp` 里的 UART16550 行为模型顶替 (见上), 两边都能 printf
        - cpu-tests 的 PASS/FAIL 只看 make 返回码, 而 sim 恒返回 0, 所以不能用来判定 GOOD/BAD TRAP, 要自己 grep 输出
 
 3. 核算性能和面积成本
@@ -459,7 +466,23 @@
   - `npc/Makefile` 新增 `lint` 目标: `make lint ARCH=minirv-npc` (或 `minirv-ysyxsoc`)
   - 仅剩 UNUSEDSIGNAL,确认后保留: `misalign` (供仿真环境使用) / `lsu_size` (仅 npc 流程, `dpic_mem` 用不到)
 
-5. 触发器的复位和四值仿真
+5. iverilog四值仿真 (iverilog 不支持 DPI-C, 改用 VPI)
+  - 思路: RTL 里调 `$pmem_read`/`$pmem_write` VPI 系统任务, 由 VPI 模块反过来调 C 侧的 `pmem_read()`/`pmem_write()`
+  - cpp 侧
+    - `csrc/vpi.c` (新): VPI 模块, 注册 `$pmem_read` / `$pmem_write` / `$pmem_load` / `$sim_retire`; 取实参用 `vpi_get_value`, 返回值 `vpi_put_value` 到 `vpiSysTfCall`
+    - `csrc/include/pmem.h` (新): 纯 C 接口 (`extern "C"`), 不依赖 Verilator; `csrc/pmem.cpp` 把 `pmem_read/pmem_write/flash_read` 从 `dpi.cpp` 挪过来 (名字不变)
+    - `csrc/dpi.cpp`: 只剩 `sim_retire` (Verilator 专有)
+  - RTL 侧: 三处 `ifdef __ICARUS__`
+    - `define.vh`: `PMEM_READ`/`PMEM_WRITE` 宏; `dpic_mem.v`: DPI-C import 包进 `ifndef`, 调用点改用宏; `ysyx_22040000.v`: `sim_retire` 改调 `$sim_retire`
+    - `npc/iverilog_top.v` (新): 驱动仿真，clock/reset + `$value$plusargs("img=%s")` + `$pmem_load`
+  - Makefile: 仿真工具拆成独立变量 `SIM ?= verilator` (`verilator`/`iverilog`), `ARCH` 只管平台
+    - `SIM=iverilog` 时顶层换 `iverilog_top`, `default/run/sim/sim-run` 分流到 `iv`/`iv-run` (AM 的 `npc.mk` 调的是 `sim-run`, 所以能走通)
+    - 链路: `gcc -fPIC -shared` 出 `.vpi` → `iverilog -g2012` 出 `.vvp` → `vvp -M<dir> -m vpi +img=<img>`
+  - 验证: 
+    - `make run ARCH=minirv-npc SIM=iverilog` → dummy GOOD TRAP; hello 输出 `Hello, AbstractMachine!`
+    - microbench: `make ARCH=minirv-npc SIM=iverilog run mainargs=test` → MicroBench PASS
+
+6. 网表仿真
   - 
 
 # TODO 

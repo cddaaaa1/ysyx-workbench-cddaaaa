@@ -209,11 +209,14 @@ module ysyx_22040000(
 `endif
 
 `ifndef SYNTHESIS
-
+`ifdef __ICARUS__
+	always @(posedge clock) if (commit) $sim_retire(pc, inst);
+`else
 	import "DPI-C" function void sim_retire(input int pc, input int inst);
 	always @(posedge clock) begin
 		if (commit) sim_retire(pc, inst);
 	end
+`endif
 
 	wire [31:0] a0 = u_gpr.rf[10];
 

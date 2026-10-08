@@ -1,4 +1,6 @@
 VERILATOR := verilator
+IVERILOG  := iverilog
+SIM  ?= verilator
 ARCH ?= minirv-ysyxsoc
 
 NPC_HOME  := $(CURDIR)
@@ -39,6 +41,13 @@ else
   $(error ARCH 只支持 minirv-npc / minirv-ysyxsoc, 当前是 "$(ARCH)")
 endif
 
+ifeq ($(SIM),iverilog)
+  TOPNAME   := iverilog_top
+  SIM_VSRCS += $(NPC_HOME)/iverilog_top.v
+else ifneq ($(SIM),verilator)
+  $(error SIM 只支持 verilator / iverilog, 当前是 "$(SIM)")
+endif
+
 SIM_BIN := $(BUILD_DIR)/sim-$(TOPNAME)
 
 ifneq ($(BOARD),)
@@ -74,7 +83,14 @@ CXXFLAGS += -DDEBUG_TIME -DMAX_CYCLE=$(MAXCYCLE)
 endif
 
 # rules
+ifeq ($(SIM),iverilog)
+default: iv-run
+run:     iv-run
+sim:     iv
+sim-run: iv-run
+else
 default: sim
+run:     sim-run
 
 sim: $(SIM_BIN)
 
@@ -90,11 +106,10 @@ sim-run: $(SIM_BIN)
 	@echo "ARCH=$(ARCH) TOP=$(TOPNAME) IMG=$(IMG)"
 	@$(SIM_BIN) $(IMG)
 
-run: sim-run
-
 sim-wave:
 	@$(MAKE) -s sim WAVE=1
 	@$(SIM_BIN) $(IMG)
+endif
 
 wave:
 	gtkwave $(VCD) &
@@ -103,13 +118,42 @@ lint:
 	$(VERILATOR) --lint-only -Wall -Wno-DECLFILENAME $(INC_FLAGS) $(VDEFINES) \
 		--top-module ysyx_22040000 $(NPC_VSRCS)
 
+# ---- iverilog 流程 (SIM=iverilog): 编出 .vpi 插件, 再让 vvp 在运行期加载 ----
+ifeq ($(SIM),iverilog)
+OSS_INC ?= $(abspath $(dir $(shell which $(IVERILOG)))/../include/iverilog)
+IV_DIR  := $(BUILD_DIR)
+VPI_SO  := $(IV_DIR)/vpi.vpi
+IV_VVP  := $(IV_DIR)/sim-iv.vvp
+
+$(IV_DIR)/vpi.o: $(CSRC_DIR)/vpi.c $(CSRC_DIR)/include/pmem.h
+	@mkdir -p $(IV_DIR)
+	$(CC) -O2 -fPIC -I$(OSS_INC) -I$(CSRC_DIR) -c $< -o $@
+
+$(IV_DIR)/vpi_pmem.o: $(CSRC_DIR)/pmem.cpp $(CSRC_DIR)/include/pmem.h
+	@mkdir -p $(IV_DIR)
+	$(CXX) -O2 -fPIC -c $< -o $@
+
+$(VPI_SO): $(IV_DIR)/vpi.o $(IV_DIR)/vpi_pmem.o
+	$(CXX) -shared -o $@ $^
+
+$(IV_VVP): $(SIM_VSRCS) $(HDRS) $(VPI_SO)
+	@mkdir -p $(IV_DIR)
+	$(IVERILOG) -g2012 -o $@ $(if $(WAVE),-DDUMP) $(INC_FLAGS) $(SIM_VSRCS)
+
+iv: $(VPI_SO) $(IV_VVP)
+
+iv-run: iv
+	@echo "ARCH=$(ARCH) IMG=$(IMG)"
+	vvp -M$(IV_DIR) -m vpi $(IV_VVP) +img=$(IMG)
+endif
+
 sim-clean:
 	rm -rf $(OBJ_DIR) $(SIM_BIN) $(VCD)
 
 clean:
 	rm -rf $(BUILD_DIR) $(VCD)
 
-.PHONY: default sim sim-run run sim-wave wave lint sim-clean clean
+.PHONY: default sim sim-run run sim-wave wave lint iv iv-run sim-clean clean
 
 
 
