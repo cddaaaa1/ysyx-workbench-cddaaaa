@@ -4,7 +4,7 @@ module iverilog_top;
 	reg reset = 1;
 	reg [8*256-1:0] img;
 
-	ysyx_22040000 dut(.clock(clock), .reset(reset));
+	npc_top dut(.clock(clock), .reset(reset));
 
 	always #1 clock = ~clock;
 

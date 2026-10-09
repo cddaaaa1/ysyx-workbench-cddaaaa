@@ -62,10 +62,12 @@
 `define PMEM_WRITE(a,d,m) pmem_write(a,d,m)
 `endif
 
+`ifndef PC_RESET
 `ifdef YSYXSOC
-`define PC_RESET 32'h30000000   
+`define PC_RESET 32'h30000000
 `else
-`define PC_RESET 32'h80000000   
+`define PC_RESET 32'h80000000
+`endif
 `endif
 
 `endif

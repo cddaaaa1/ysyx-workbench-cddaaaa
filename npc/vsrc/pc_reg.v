@@ -1,3 +1,4 @@
+`include "define.vh"
 module ysyx_22040000_pc_reg (
 	input        clk,
 	input        rst,

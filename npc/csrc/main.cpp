@@ -79,8 +79,13 @@ int main(int argc, char **argv)
     }
 
     double ipc = (double)inst_count / (double)(cycle + 1);
+#ifdef NETLIST_SIM
+    // 网表里没有 DPI-C sim_retire, 数不出退休指令数
+    printf("Simulation stopped after %llu cycles (netlist)\n", cycle + 1);
+#else
     printf("Simulation stopped after %llu cycles, %lld instructions executed, IPC = %.4f (last pc = 0x%08x)\n",
            cycle + 1, inst_count, ipc, static_cast<unsigned>(sim.retire_pc));
+#endif
     top->final();
     tfp->close();
     delete tfp;

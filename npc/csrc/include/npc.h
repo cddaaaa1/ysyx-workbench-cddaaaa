@@ -6,8 +6,8 @@
 #include <VSimTop.h>
 using TOP = VSimTop;
 #else
-#include <Vysyx_22040000.h>
-using TOP = Vysyx_22040000;
+#include <Vnpc_top.h>
+using TOP = Vnpc_top;
 #endif
 #ifdef NVBOARD
 #include <nvboard.h>

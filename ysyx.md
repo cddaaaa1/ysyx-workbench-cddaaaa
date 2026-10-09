@@ -483,7 +483,28 @@
     - microbench: `make ARCH=minirv-npc SIM=iverilog run mainargs=test` → MicroBench PASS
 
 6. 网表仿真
-  - 
+  - 目标: 用综合网表替换 RTL 模块, 检查代码里是否含"不可综合但仿真器接受"的写法.
+    网表里不能有 DPI-C, 所以**存储器必须移到 NPC 外面** (Top{ NPC-netlist, Mem })
+  - 结构改造: NPC 只留 SimpleBus 端口, "NPC + 存储器"的组合提到仿真顶层
+    - `ysyx_22040000.v`: 删掉 `ifdef YSYXSOC`, `io_*` 恒为端口; 删掉内部例化 `dpic_mem` 的分支
+    - `npc_top.v` (新): 例化 `ysyx_22040000` + `dpic_mem` 并对接 SimpleBus.
+      RTL 仿真和网表仿真**共用**这一个顶层, 区别只是"编 RTL 还是编网表"
+    - 好处: 综合时不再依赖"有没有传对 `YSYXSOC`"; `_Synthesis_sim.v` 的顶层端口与 RTL 顶层完全一致, 可直接 drop-in
+  - `PC_RESET` 与 `YSYXSOC` 解耦
+    - `define.vh`: `PC_RESET` 用 `ifndef` 包起来, 可被 `+define+PC_RESET=...` 覆盖; 默认 `0x80000000`, SoC 流程 (`+define+YSYXSOC`) 才是 `0x30000000`
+    - 必要性: `PC_RESET` 综合后是**网表里的常量, 改不了**, 所以网表仿真要单独综合一份复位值为 0x80000000 的网表
+  - 构建
+    - `csrc/include/npc.h`: `using TOP = Vnpc_top`; `main.cpp` 加 `NETLIST_SIM` 分支 (网表里没有 `sim_retire`, 不打印 IPC)
+    - `Makefile`: 网表目标单列一组 (`netlist` / `netlist-syn` / `netlist-verilator` / `netlist-iverilog`), 不再往 `SIM`/`ARCH` 分支里塞; SoC 流程的源文件里滤掉 `npc_top.v`/`dpic_mem.v`
+    - `make netlist-syn`: 临时去掉 ECC filelist 里的 `+define+YSYXSOC` → `ecc run --run-id netlist-sim` → 还原 filelist
+    - 用 `_Synthesis_sim.v.gz` (面向仿真, 顶层端口和 RTL 一致), 不是 `_Synthesis.v.gz`; 源文件 = `npc_top.v` + `dpic_mem.v` + 解压后的网表 + `ics55_LLSC_H7C{H,L,R}.v`
+  - verilator: 单元模型用 UDP 表描述, 系统 verilator 5.008 报 `Unsupported: Verilog 1995 UDP Tables`, 改用 oss-cad-suite 的 verilator (5.053)
+    - 额外选项: `--timescale "1ns/1ns" --no-timing -D__VERILATOR__ -Dfunctional`
+  - 网表里 `ifndef SYNTHESIS` 那段被综合掉 (没有 ebreak 的 `$display`/`$finish`), 改由 `npc_top.v` 在 `ifdef NETLIST_SIM` 下探测"取到 ebreak"来 `$finish`
+  - iverilog: `make netlist-iverilog`, 代码不用改 (VPI 照旧)
+  - 验证
+    - dummy: verilator / iverilog 网表都 165 周期, 与 RTL 一致
+    - hello: verilator 网表 126102 周期, 与 RTL **完全相同**; iverilog 网表同样输出 `Hello, AbstractMachine!` (59 s)
 
 # TODO 
 - ~~存储器表示: REF(minirvEMU) 按字存 (`uint32_t M[]`, 字节访问靠移位+掩码), NPC 侧 pmem 按字节存 (`uint8_t pmem[]`, 字访问靠拼接)。对外  接口都是 32 位字 + `wmask` 字节掩码, 语义等价;~~
