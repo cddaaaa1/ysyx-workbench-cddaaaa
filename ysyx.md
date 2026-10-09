@@ -484,27 +484,52 @@
 
 6. 网表仿真
   - 目标: 用综合网表替换 RTL 模块, 检查代码里是否含"不可综合但仿真器接受"的写法.
-    网表里不能有 DPI-C, 所以**存储器必须移到 NPC 外面** (Top{ NPC-netlist, Mem })
+    网表里不能有 DPI-C, 所以存储器必须移到 NPC 外面 (Top{ NPC-netlist, Mem })
   - 结构改造: NPC 只留 SimpleBus 端口, "NPC + 存储器"的组合提到仿真顶层
     - `ysyx_22040000.v`: 删掉 `ifdef YSYXSOC`, `io_*` 恒为端口; 删掉内部例化 `dpic_mem` 的分支
     - `npc_top.v` (新): 例化 `ysyx_22040000` + `dpic_mem` 并对接 SimpleBus.
-      RTL 仿真和网表仿真**共用**这一个顶层, 区别只是"编 RTL 还是编网表"
-    - 好处: 综合时不再依赖"有没有传对 `YSYXSOC`"; `_Synthesis_sim.v` 的顶层端口与 RTL 顶层完全一致, 可直接 drop-in
+      RTL 仿真和网表仿真共用这一个顶层, 区别只是"编 RTL 还是编网表"
   - `PC_RESET` 与 `YSYXSOC` 解耦
     - `define.vh`: `PC_RESET` 用 `ifndef` 包起来, 可被 `+define+PC_RESET=...` 覆盖; 默认 `0x80000000`, SoC 流程 (`+define+YSYXSOC`) 才是 `0x30000000`
-    - 必要性: `PC_RESET` 综合后是**网表里的常量, 改不了**, 所以网表仿真要单独综合一份复位值为 0x80000000 的网表
+    - 必要性: `PC_RESET` 综合后是网表里的常量, 改不了, 所以网表仿真要单独综合一份复位值为 0x80000000 的网表
   - 构建
     - `csrc/include/npc.h`: `using TOP = Vnpc_top`; `main.cpp` 加 `NETLIST_SIM` 分支 (网表里没有 `sim_retire`, 不打印 IPC)
-    - `Makefile`: 网表目标单列一组 (`netlist` / `netlist-syn` / `netlist-verilator` / `netlist-iverilog`), 不再往 `SIM`/`ARCH` 分支里塞; SoC 流程的源文件里滤掉 `npc_top.v`/`dpic_mem.v`
-    - `make netlist-syn`: 临时去掉 ECC filelist 里的 `+define+YSYXSOC` → `ecc run --run-id netlist-sim` → 还原 filelist
+    - `Makefile`: 网表目标单列一组 (`netlist` / `netlist-syn` / `netlist-verilator` / `netlist-iverilog`)
+      - `netlist-syn`： 调用ECC 工具做综合
+      - `netlist-verilator`： 用 Verilator 编译/仿真网表
+      - `netlist-iverilog`： 用iverilog 编译/仿真网表
+      - `netlist`： 解压
+    - ECC filelist.f 里不再放 `+define+YSYXSOC` → ECC 综合出来的网表一律 `PC_RESET = 0x80000000` (先不考虑 SoC 流程)
+    - `make netlist-syn` = `ecc run --project npc --run-id netlist-sim --overwrite`, 产物在 `runs/netlist-sim/`
+      - 将来要把某份网表给流片用 (复位 0x30000000), 再在 filelist 加 `+define+YSYXSOC`; 那时网表仿真需要另想办法 (或者改成在 0x30000000 放跳转指令)
     - 用 `_Synthesis_sim.v.gz` (面向仿真, 顶层端口和 RTL 一致), 不是 `_Synthesis.v.gz`; 源文件 = `npc_top.v` + `dpic_mem.v` + 解压后的网表 + `ics55_LLSC_H7C{H,L,R}.v`
   - verilator: 单元模型用 UDP 表描述, 系统 verilator 5.008 报 `Unsupported: Verilog 1995 UDP Tables`, 改用 oss-cad-suite 的 verilator (5.053)
     - 额外选项: `--timescale "1ns/1ns" --no-timing -D__VERILATOR__ -Dfunctional`
   - 网表里 `ifndef SYNTHESIS` 那段被综合掉 (没有 ebreak 的 `$display`/`$finish`), 改由 `npc_top.v` 在 `ifdef NETLIST_SIM` 下探测"取到 ebreak"来 `$finish`
   - iverilog: `make netlist-iverilog`, 代码不用改 (VPI 照旧)
   - 验证
-    - dummy: verilator / iverilog 网表都 165 周期, 与 RTL 一致
-    - hello: verilator 网表 126102 周期, 与 RTL **完全相同**; iverilog 网表同样输出 `Hello, AbstractMachine!` (59 s)
+    -  Microbench Verilator 
+    ``` sh 
+      cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/benchmarks/microbench
+      make ARCH=minirv-npc mainargs=test insert-arg 
+
+      make netlist-verilator NET_IMG=/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/benchmarks/microbench/build/microbench-minirv-npc.bin
+    ```
+
+   - Microbench iverilog **TODO** 
+     ```sh
+     cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/npc
+     nohup make netlist-iverilog NET_IMG=/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/benchmarks/microbench/build/microbench-minirv-npc.bin > /tmp/net_mb_iv.log 2>&1 &
+     ```
+     - (门级 4 值很慢: 实测 ~0.47 ms/周期 → 73.3M 周期约 9~10 小时, 挂后台跑)
+     - 看进度: `tail -5 /tmp/net_mb_iv.log` —— 每跑完一个子测试多一行 `* Passed.` (共 10 个), 最后是 `MicroBench PASS`
+     - 看进程: `pgrep -af sim-net-iv.vvp`; `ps -o pid,etime,time,%cpu -p $(pgrep -f sim-net-iv.vvp)` (用 `pgrep` 取 PID, 别写死)
+     - 停: `pkill -f sim-net-iv.vvp` (只杀 make 没用, vvp 会继续占 CPU)
+     - 跑之前确认 Windows 不会睡眠 —— 熄屏不影响, 但睡眠/休眠会挂起整个 WSL2: `powercfg.exe /change standby-timeout-ac 0`
+
+7. ECOS 后端物理设计
+  - 提示缺少config.macro_locations, 这是符合预期的, 因为目前我们的设计中不包含宏单元
+  - Checklist 100% 
 
 # TODO 
 - ~~存储器表示: REF(minirvEMU) 按字存 (`uint32_t M[]`, 字节访问靠移位+掩码), NPC 侧 pmem 按字节存 (`uint8_t pmem[]`, 字访问靠拼接)。对外  接口都是 32 位字 + `wmask` 字节掩码, 语义等价;~~

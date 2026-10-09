@@ -147,14 +147,12 @@ iv-run: iv
 	vvp -M$(IV_DIR) -m vpi $(IV_VVP) +img=$(IMG)
 
 # ---- 网表仿真 (E8): 用综合网表替换 RTL 模块, 存储器仍由 npc_top 例化 ----
-# 标准单元行为模型用 UDP 表描述, 系统 verilator(5.008) 不支持, 改用 oss-cad-suite 的
 OSS_BIN     := $(patsubst %/,%,$(dir $(shell which $(IVERILOG))))
 NET_VERILATOR ?= $(OSS_BIN)/verilator
 PDK_HOME   ?= $(HOME)/.local/opt/icsprout55-pdk
 CELL_VSRCS := $(wildcard $(PDK_HOME)/IP/STD_cell/ics55_LLSC_H7C_V1p10C100/*/verilog/*.v)
 ECC_HOME   ?= $(HOME)/Projects/ecc
 SYN_RUN    ?= netlist-sim
-ECC_FLIST  := $(ECC_HOME)/npc/rtl/filelist.f
 NETLIST_GZ ?= $(ECC_HOME)/npc/runs/$(SYN_RUN)/Synthesis_yosys/output/npc_Synthesis_sim.v.gz
 NETLIST    := $(BUILD_DIR)/netlist/$(patsubst %.v.gz,%.v,$(notdir $(NETLIST_GZ)))
 NET_VSRCS  := $(VSRC_DIR)/npc_top.v $(VSRC_DIR)/dpic_mem.v $(NETLIST) $(CELL_VSRCS)
@@ -166,12 +164,8 @@ NET_CDEFINES := -DNETLIST_SIM $(if $(WAVE),-DTRACE_ON,) \
                 $(if $(MAXCYCLE),-DDEBUG_TIME -DMAX_CYCLE=$(MAXCYCLE),)
 NET_IV_VVP  := $(BUILD_DIR)/sim-net-iv.vvp
 
-# 综合一份 PC 复位值为 0x80000000 的网表: 去掉 YSYXSOC, 让 define.vh 走默认值
-netlist-syn:
-	@cp -f $(ECC_FLIST) $(ECC_FLIST).bak
-	@sed -i '/^+define+YSYXSOC/d' $(ECC_FLIST)
-	-@cd $(ECC_HOME) && ecc run --project npc --run-id $(SYN_RUN) --overwrite
-	@mv -f $(ECC_FLIST).bak $(ECC_FLIST)
+netlist-syn: 
+	@cd $(ECC_HOME) && ecc run --project npc --run-id $(SYN_RUN) --overwrite
 
 $(NETLIST): $(NETLIST_GZ)
 	@mkdir -p $(dir $@)
