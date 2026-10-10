@@ -1,8 +1,3 @@
-// IFU (Instruction Fetch Unit): 按 SimpleBus 协议从存储器取出一条指令
-// 读出数据需要延迟一拍, 故取指占两个周期:
-//   idle: 把 pc 作为取指地址发给存储器, 下一拍进 wait
-//   wait: 存储器返回的指令有效, 交给后续模块译码执行, 下一拍回 idle
-// 注: 指令何时退休由顶层判断(load 还要等 LSU 拿回数据), 不在这里回调
 `include "define.vh"
 module ysyx_22040000_ifu(
         input  clk,

@@ -1,7 +1,3 @@
-// LSU (Load-Store Unit): 按 SimpleBus 协议访问存储器
-// 写操作在发出请求的那一拍完成; 读操作数据晚一拍到, 因此 load 要多花一个周期:
-//   wait_data=0: 本拍是 IFU 的 wait 拍, 把地址/写数据发给存储器
-//   wait_data=1: 存储器返回的 lsu_rdata 有效, 交给 WBU 写回寄存器
 `include "define.vh"
 module ysyx_22040000_lsu(
         input         clk,

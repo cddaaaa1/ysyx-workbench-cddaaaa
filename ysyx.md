@@ -411,6 +411,7 @@
            tail -f result/100.blockchain-k15.log
            ```
            - 记录 min time / Marks / IPC
+           
 3. NPC 和 ysyxSoc 单独仿真
    - Makefile: 加 `ARCH ?=` 分支决定 TOPNAME / VSRCS / Verilog 宏 / IMG / 是否链 NVBoard; `OBJ_DIR` 移到 `build/obj_dir` 且 verilate 前 `rm -rf`; `SIM_CSRC`(滤掉 `emu_main.cpp`/`minirvemu.cpp`) 与 `HDRS`(从 `INC_FLAGS` 的 `-I` 目录派生) 改成自动收集; 新增 `WAVE=1`→`-DTRACE_ON`、`MAXCYCLE=N`→`-DDEBUG_TIME -DMAX_CYCLE=N` 两个开关.
    - main.cpp: 顶层类型改由 `npc.h` 的 `using TOP = ...` 按 `YSYXSOC` 选 `VSimTop` / `Vysyx_22040000`; `flash_load` / `cpuClock` 按流程分叉; `tfp` 改成无条件 `new` + `IFDEF(TRACE_ON, ...)`; 周期上限写成 `IFDEF(DEBUG_TIME, && cycle < MAX_CYCLE)`, 不传就不限制.
@@ -449,13 +450,16 @@
 ### 前端准备工作
 
 1. 开放NPC的地址空间
+
   - NPC以开放所有地址空间
 
 2. 去除下沿时钟
+
   - 无下沿时钟
 
 3. 去除锁存器
-  - 
+
+  - 检查综合的网表: 
    ```sh
     cd ~/Projects/ecc/npc/runs/default/Synthesis_yosys/output
     zcat npc_Synthesis.v.gz | grep -c "LAT"    
@@ -516,21 +520,18 @@
       make netlist-verilator NET_IMG=/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/benchmarks/microbench/build/microbench-minirv-npc.bin
     ```
 
-   - Microbench iverilog **TODO** 
-     ```sh
-     cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/npc
-     nohup make netlist-iverilog NET_IMG=/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/benchmarks/microbench/build/microbench-minirv-npc.bin > /tmp/net_mb_iv.log 2>&1 &
-     ```
-     - (门级 4 值很慢: 实测 ~0.47 ms/周期 → 73.3M 周期约 9~10 小时, 挂后台跑)
-     - 看进度: `tail -5 /tmp/net_mb_iv.log` —— 每跑完一个子测试多一行 `* Passed.` (共 10 个), 最后是 `MicroBench PASS`
-     - 看进程: `pgrep -af sim-net-iv.vvp`; `ps -o pid,etime,time,%cpu -p $(pgrep -f sim-net-iv.vvp)` (用 `pgrep` 取 PID, 别写死)
-     - 停: `pkill -f sim-net-iv.vvp` (只杀 make 没用, vvp 会继续占 CPU)
-     - 跑之前确认 Windows 不会睡眠 —— 熄屏不影响, 但睡眠/休眠会挂起整个 WSL2: `powercfg.exe /change standby-timeout-ac 0`
+    - Microbench iverilog 
+      ```sh
+      cd ~/Projects/ysyx/ysyx-workbench-cddaaaa/npc
+      nohup make netlist-iverilog NET_IMG=/home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/am-kernels/benchmarks/microbench/build/microbench-minirv-npc.bin > /tmp/net_mb_iv.log 2>&1 &
+      ```
+      - grep -aE "Passed|Failed|MicroBench|time" /tmp/net_mb_iv.log
+      - 耗时：6小时14分
 
 7. ECOS 后端物理设计
   - 提示缺少config.macro_locations, 这是符合预期的, 因为目前我们的设计中不包含宏单元
   - Checklist 100% 
-
+  - Signoff Package export 到 `/home/cddaaaa/Projects/ecos/ysyx_E_npc/npc_signoff_package.tar.gz`
 # TODO 
 - ~~存储器表示: REF(minirvEMU) 按字存 (`uint32_t M[]`, 字节访问靠移位+掩码), NPC 侧 pmem 按字节存 (`uint8_t pmem[]`, 字访问靠拼接)。对外  接口都是 32 位字 + `wmask` 字节掩码, 语义等价;~~
 - 过一遍minirv代码 + 批量运行程序
