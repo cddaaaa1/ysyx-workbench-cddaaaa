@@ -14,6 +14,11 @@
 !init.sh
 !/ysyx.md
 !/perf.md
+
+# Codex local files and instructions
+/.codex/
+/AGENTS.md
+
 # 外部仓库：ysyxSoC / am-kernels / archbench / fceux-am / abstract-machine 已注册为 submodule
 /riscv-tests
 
