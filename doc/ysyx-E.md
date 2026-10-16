@@ -1,4 +1,4 @@
-# ysyx 学习记录
+# ysyx 学习记录 E 部分
 
 # 第一周 9/8 - 9/10
 1. 配置环境
@@ -532,6 +532,13 @@
   - 提示缺少config.macro_locations, 这是符合预期的, 因为目前我们的设计中不包含宏单元
   - Checklist 100% 
   - Signoff Package export 到 `/home/cddaaaa/Projects/ecos/ysyx_E_npc/npc_signoff_package.tar.gz`
+
+
+# 第五周 
+
+补F阶段的实验，必做题，
+搭建自己的2607学习记录，整理之前的任务，也当复习一次
+
 # TODO 
 - ~~存储器表示: REF(minirvEMU) 按字存 (`uint32_t M[]`, 字节访问靠移位+掩码), NPC 侧 pmem 按字节存 (`uint8_t pmem[]`, 字访问靠拼接)。对外  接口都是 32 位字 + `wmask` 字节掩码, 语义等价;~~
 - 过一遍minirv代码 + 批量运行程序
@@ -544,3 +551,6 @@
 - 兼容以前的任务
 - 改idu 
 - CLK_RATIO > 1 时跑不通(实测 k=2/k=3 都挂, 留待以后解决): 慢时钟域设备的时间被放大 k 倍 —— PSRAM 上电序列(50 000 个 `clock` 周期, k=3 时 = 150 000 个 CPU 周期)期间 loader 就发出第一个 PSRAM 写, 该访问要等 ~230 000 个 CPU 周期才完成, 整条 AXI 链路(取指/访存)在此期间全冻结, 恢复后 CPU 的 PC 已落到非法地址(`0xFEC0007A`)跑飞; 分频波形形状/相位、倍频比大小、组合环(Verilator lint)、CDC 相位断言(`--assert`)均已排除。
+- gpr.v 中 x0 恒为零的逻辑
+- 数电实验23678
+- 配置codex 
