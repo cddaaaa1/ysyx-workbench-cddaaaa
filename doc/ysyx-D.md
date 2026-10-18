@@ -1,6 +1,6 @@
 # ysyx 学习记录 D 阶段
 
-## D1
+## D1 从c代码到二进制程序
 
 ### 预处理
 
@@ -237,7 +237,7 @@
   - `-O2`: user    0m0.000s 同上
 
 - 程序的开始和返回
-  - 
+  -  GNU Debugger，即 GNU 调试器，用来观察和控制程序运行过程
    ```sh 
     clang -g sum.c -o sum.out
     gdb ./sum.out 
@@ -249,5 +249,60 @@
 
   -  程序不是从main()返回后就结束，而是在exit_group 系统调用后结束
 
+### 手册行为和编码规范
+- 程序的行为不是只由源代码决定的，还受到语言标准、编译器、运行时环境和目标平台的共同影响。
 
-  
+<!-- #### 标准规范的实现
+
+#### 程序执行的语义
+
+#### 未指定行为
+- 对于未指定行为，不同编译器会有不同的效果；
+
+#### 实现定义行为
+
+#### 区域特定行为
+
+#### 未定义行为
+
+#### 应用程序二进制接口 -->
+
+
+## D2 简易调试器
+
+### PA1 - RTFSC
+
+#### 配置系统和项目构建 
+- 配置系统kconfig
+  - `mconf nemu/Kconfig`
+    - 作用：读取nemu/Kconfig; 打开交互式菜单配置界面；选择 ISA、编译器、优化等级、调试功能等选项； 保存后生成或更新.config
+    - 报错解决： `mconf nemu/Kconfig` command not found: make menuconfig 只在项目目录中生成 nemu/tools/kconfig/build/mconf，没有将其加入系统 $PATH，因此不能直接输入 mconf，需要使用项目路径调用。
+    ```sh
+    cd /home/cddaaaa/Projects/ysyx/ysyx-workbench-cddaaaa/nemu
+    export PATH="$PWD/tools/kconfig/build:$PATH"
+    mconf Kconfig
+    ```
+  - `conf --syncconfig Kconfig`
+    - 作用：读取已经保存的 .config；- 根据 Kconfig 检查配置是否同步；生成供 Makefile 和 C 源码使用的配置文件；
+  - `make menuconfig` 会包括了以上两个步骤
+- 编译和链接
+  - 编译规则：nemu/scripts/build.mk
+
+#### 准备第一个客户程序
+- `src/monitor/monitor.c`:  NEMU 的监控器初始化模块，负责在 NEMU 启动时完成命令行参数解析、内存、设备、ISA、镜像和调试器等初始化工作。
+- `nemu/src/isa/riscv32/init.c`: 指令集架构相关的初始化l; 加载内置测试程序 ；设置cpu初始状态；设置pc；初始化RISC-V零寄存器
+- 编译并运行NEMU： 
+  - `make run`
+  - 进入简易调试器后键入c后, NEMU开始进入指令执行的主循环cpu_exec()
+  - 客户程序已经成功地结束运行，输出： `nemu: HIT GOOD TRAP at pc = 0x8000000c`
+- 为NEMU编译时添加GDB调试信息， make menuconfig , [*] Enable debug information 
+
+#### 理解代码框架
+- 理解框架代码是一个螺旋上升的过程， RTFSC 这一部分可以看作是对整体框架的初步了解，具体的代码实现将在后续实际遇到相关问题时再深入研究。 
+
+#### 优美地推出
+- 在 cmd_q() 把NEMU状态设置为NEMU_QUIT, 再return -1;这样 main() 的 is_exit_status_bad() 会把它判定为正常退出。
+
+### 基础设施:简易调试器 
+
+### 
