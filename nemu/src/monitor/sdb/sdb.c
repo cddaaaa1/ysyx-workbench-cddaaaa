@@ -23,6 +23,7 @@ static int is_batch_mode = false;
 
 void init_regex();
 void init_wp_pool();
+word_t vaddr_read(vaddr_t addr, int len);
 
 /* We use the `readline' library to provide more flexibility to read from stdin. */
 static char* rl_gets() {
@@ -53,6 +54,58 @@ static int cmd_q(char *args) {
   return -1;
 }
 
+static int cmd_si(char *args){
+  char* arg = strtok(NULL, " ");
+  int steps;
+  if (arg == NULL) {
+    /* no argument, default step one instruction */
+    cpu_exec(1);
+  }else if (sscanf(arg, "%d", &steps) == 1 && steps > 0)  {
+    cpu_exec(steps);
+  }else {
+    printf("Usage: si [positive integer]\n");
+  }
+  return 0;
+}
+
+
+static int cmd_info(char *args){
+  char* arg = strtok(NULL, " ");
+  if (arg == NULL) {
+    printf("no argument: info r|w\n");
+  }else if (strcmp(arg, "r") == 0) {
+    isa_reg_display();
+  }else if (strcmp(arg, "w") == 0) {
+    Log("info w is not implemented yet\n");
+  }else {
+    printf("Unknown info subcommand: %s\n", arg);
+  }
+  return 0;
+}
+
+static int cmd_x(char *args){
+  char *n_str = strtok(NULL, " ");
+  char *expr_str = strtok(NULL," ");
+  int n;
+  if (n_str == NULL || expr_str == NULL){
+    printf("Lack of arguments \n");
+  }
+  else if (sscanf(n_str, "%d", &n) == 1 ){
+    bool success;
+    vaddr_t addr = expr(expr_str, &success);
+    if (success){
+      for (int i = 0; i < n; i++) {
+        vaddr_t current_addr = addr + i * 4;
+        word_t data = vaddr_read(addr + i * 4, 4);
+        printf("[%d] addr: " FMT_WORD "\tdata: " FMT_WORD "\n", i, current_addr, data);
+      }
+    }
+  } else {
+    printf("error");
+  }
+  return 0;
+}
+
 static int cmd_help(char *args);
 
 static struct {
@@ -63,7 +116,9 @@ static struct {
   { "help", "Display information about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
-
+  { "si"," Step through N instructions (default: 1)",cmd_si},
+  { "info","Print program status",cmd_info},
+  { "x","Scan memory",cmd_x}
   /* TODO: Add more commands */
 
 };

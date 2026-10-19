@@ -24,6 +24,14 @@ const char *regs[] = {
 };
 
 void isa_reg_display() {
+  size_t gpr_count = sizeof(cpu.gpr) / sizeof(cpu.gpr[0]);
+  printf("%zu General Registers:\n", gpr_count);
+  for (size_t i = 0; i < gpr_count; i++) {
+    printf("%-3s: " FMT_WORD, regs[i], cpu.gpr[i]);
+    putchar(i % 2 == 1 || i + 1 == gpr_count ? '\n' : '\t');
+  }
+  printf("\nProgram Counter:\n");
+  printf("%-3s: " FMT_WORD "\n", "pc", cpu.pc);
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {

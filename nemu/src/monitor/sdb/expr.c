@@ -22,7 +22,7 @@
 
 enum {
   TK_NOTYPE = 256, TK_EQ,
-
+  TK_HEXNUM
   /* TODO: Add more token types */
 
 };
@@ -39,6 +39,7 @@ static struct rule {
   {" +", TK_NOTYPE},    // spaces
   {"\\+", '+'},         // plus
   {"==", TK_EQ},        // equal
+  {"0[xX][0-9a-fA-F]+", TK_HEXNUM} // hex number
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -93,9 +94,24 @@ static bool make_token(char *e) {
          * to record the token in the array `tokens'. For certain types
          * of tokens, some extra actions should be performed.
          */
+        if (rules[i].token_type == TK_NOTYPE){
+          break;
+        }
+
+        Assert(nr_token < ARRLEN(tokens), "%s", "too many tokens in expression\n");
+        Assert(substr_len < sizeof(tokens[nr_token].str), "%s", "substring is too long\n");
 
         switch (rules[i].token_type) {
-          default: TODO();
+          case TK_HEXNUM:
+          case '+':
+          case TK_EQ:
+            tokens[nr_token].type = rules[i].token_type;
+            memcpy(tokens[nr_token].str, substr_start, substr_len);
+            tokens[nr_token].str[substr_len] = '\0';
+            nr_token++;
+            break;
+          default:
+            return false;
         }
 
         break;
@@ -113,13 +129,24 @@ static bool make_token(char *e) {
 
 
 word_t expr(char *e, bool *success) {
+  *success = false;
   if (!make_token(e)) {
-    *success = false;
     return 0;
   }
 
-  /* TODO: Insert codes to evaluate the expression. */
-  TODO();
+  if (nr_token != 1) {
+    return 0;
+  }
 
-  return 0;
+  switch (tokens[0].type) {
+    case TK_HEXNUM: {
+      word_t val;
+      if (sscanf(tokens[0].str, "%x", &val) == 1){
+       *success = true;
+        return val;
+      }
+    }
+    default:
+      return 0;
+  }
 }

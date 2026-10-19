@@ -303,6 +303,35 @@
 #### 优美地推出
 - 在 cmd_q() 把NEMU状态设置为NEMU_QUIT, 再return -1;这样 main() 的 is_exit_status_bad() 会把它判定为正常退出。
 
-### 基础设施:简易调试器 
+### PA1 - 基础设施:简易调试器 
 
-### 
+#### 使用GDB 作为参考
+- 单步执行： `next`
+- 查看寄存器： `info registers`
+- 查看内存： `x/4xw` ; 4: 查看四个单位； x: 十六进制显示；w： 每个单元4字节
+
+#### 解析命令
+- 再 `monitor/sdb/sdb.c`中的用法
+  - 取命令： char *cmd = strtok(str, " ");
+  - 取参数： char *arg = strtok(NULL, " ");
+
+#### 单步执行
+- 实现"si [N]"
+- `src/monitor/sdb/sdb.c`： 命令表`cmd_table[]`中添加`si`; 添加`cmd_si()`; `sscanf` 从字符串中按格式读取数据, 这里读`%d`(一个十进制int)
+
+#### 打印寄存器
+- 实现"info r"
+- `src/isa/riscv32/reg.c`：实现 `isa_reg_display(void)`; 启用`CONFIG_RVE` 时， gpr 个数为16， 关时为32
+- `src/monitor/sdb/sdb.c`: 命令表`cmd_table[]`中添加`info`; 添加`cmd_info()`， 解析出`r`后调用`isa_reg_display(void)`
+- 暂仅支持gpr 和 PC, 不包括CSR 
+
+#### 扫描内存
+- `sdb.c`：实现 `cmd_x()`; 使用 vaddr_read() 读内存;
+- `expr.c`：输入的表达式字符串转换成一个数值； "0x80000000" -> make_token() 识别为TK_HEXNUM -> sscanf 转换为数值 0x80000000;
+
+### NEMU 代码框架
+
+#### expr.c 表达式求值
+- init_regex(): 
+- make_token(): 
+- expr(): 
