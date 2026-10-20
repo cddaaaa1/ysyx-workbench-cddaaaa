@@ -106,6 +106,21 @@ static int cmd_x(char *args){
   return 0;
 }
 
+static int cmd_p(char *args){
+  if (args == NULL) {
+    printf("Usage: p EXPR\n");
+    return 0;
+  }
+  bool success;
+  word_t result = expr(args, &success);
+  if (success) {
+    printf("%s = " FMT_WORD "\n", args, result);
+  } else {
+    printf("Invalid expression: %s\n", args);
+  }
+  return 0;
+}
+
 static int cmd_help(char *args);
 
 static struct {
@@ -118,9 +133,11 @@ static struct {
   { "q", "Exit NEMU", cmd_q },
   { "si"," Step through N instructions (default: 1)",cmd_si},
   { "info","Print program status",cmd_info},
-  { "x","Scan memory",cmd_x}
+  { "x","Scan memory",cmd_x},
+  { "p","Print value of expression", cmd_p},
   /* TODO: Add more commands */
-
+  // { "w","Set watchpoint", cmd_w },
+  // { "d","Delete watchpoint", cmd_d }
 };
 
 #define NR_CMD ARRLEN(cmd_table)

@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <string.h>
 
+
 // this should be enough
 static char buf[65536] = {};
 static char code_buf[65536 + 128] = {}; // a little larger than `buf`
@@ -31,8 +32,61 @@ static char *code_format =
 "  return 0; "
 "}";
 
-static void gen_rand_expr() {
-  buf[0] = '\0';
+static int choose(int n) {
+  return rand() % n;
+}
+
+
+static void gen_num() {
+  sprintf(buf + strlen(buf), "%uu", (unsigned int)choose(100));
+}
+
+static void gen(char c) {
+  sprintf(buf + strlen(buf), "%c", c);
+}
+
+static void gen_space(void) {
+  switch (choose(3)) {
+    case 0:
+      break;
+    case 1:
+      gen(' ');
+      break;
+    default :
+      gen(' ');
+      gen(' ');
+      break;
+  }
+}
+
+static void gen_rand_op() {
+  switch (choose(4)) {
+    case 0: gen('+'); break;
+    case 1: gen('-'); break;
+    case 2: gen('*'); break;
+    default: gen('/'); break;
+  }
+}
+
+void gen_rand_expr(int depth) {
+  if (depth > 10) {
+    gen_num();
+    return;
+  }
+  switch (choose(3)) {
+    case 0: gen_num(); break;
+    case 1: gen('('); gen_space();gen_rand_expr(depth + 1); gen_space(); gen(')'); break; 
+
+    default: gen_rand_expr(depth + 1); gen_space(); gen_rand_op(); gen_space(); gen_rand_expr(depth + 1); break;
+  }
+}
+
+void remove_u_sign(char *p) {
+  char *q = p;
+  while ((q = strchr(q, 'u')) != NULL) {
+    strcpy(code_buf, q + 1);
+    strcpy(q, code_buf);
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -44,7 +98,8 @@ int main(int argc, char *argv[]) {
   }
   int i;
   for (i = 0; i < loop; i ++) {
-    gen_rand_expr();
+    buf[0] = '\0'; 
+    gen_rand_expr(0);
 
     sprintf(code_buf, code_format, buf);
 
@@ -60,9 +115,14 @@ int main(int argc, char *argv[]) {
     assert(fp != NULL);
 
     int result;
-    ret = fscanf(fp, "%d", &result);
-    pclose(fp);
+    int read_ret = fscanf(fp, "%u", &result);
+    int close_ret = pclose(fp);
 
+    if (read_ret != 1 || close_ret != 0) {
+      continue;
+    }
+
+    remove_u_sign(buf);
     printf("%u %s\n", result, buf);
   }
   return 0;
