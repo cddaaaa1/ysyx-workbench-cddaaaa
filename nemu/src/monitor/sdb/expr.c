@@ -20,11 +20,13 @@
  */
 #include <regex.h>
 
+#include "memory/vaddr.h"
+
 #define MAX_TOKEN 4096
 
 enum {
   TK_NOTYPE = 256, TK_EQ,
-  TK_HEXNUM,TK_DECNUM
+  TK_HEXNUM,TK_DECNUM, TK_REGISTER, TK_NEQ , TK_AND, TK_DEREF
   /* TODO: Add more token types */
 
 };
@@ -49,10 +51,13 @@ static struct rule {
   {"\\*", '*'},         // multiplication 
   {"\\/", '/'},         // divide
   {"==", TK_EQ},        // equal
+  {"!=", TK_NEQ},       // not equal 
+  {"&&", TK_AND},       // logical and
   {"\\(", '('},         // left parentheses
   {"\\)", ')'},         // right parentheses
   {"0[xX][0-9a-fA-F]+", TK_HEXNUM},  // hex number
   {"[0-9]+", TK_DECNUM},          // decimal number
+  {"\\$[0-9a-z]+", TK_REGISTER}   // register
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -120,7 +125,10 @@ static bool make_token(char *e) {
         switch (rules[i].token_type) {
           case TK_HEXNUM:
           case TK_EQ:
+          case TK_NEQ:
           case TK_DECNUM:
+          case TK_REGISTER:
+          case TK_AND: 
           case '+': 
           case '-': 
           case '*':
@@ -169,20 +177,24 @@ static int find_main_operator(int p, int q) {
     }
     int precedence;
     switch (tokens[i].type) {
-      case TK_EQ: precedence = 0; break;
+      case TK_AND: precedence = 0; break;
+      case TK_EQ: 
+      case TK_NEQ: precedence = 1; break;
       case '+': 
-      case '-': precedence = 1; break;
+      case '-': precedence = 2; break;
       case '*':
-      case '/': precedence = 2; break;
+      case '/': precedence = 3; break;
+      case TK_DEREF: precedence = 4; break;
       default: continue;
     }
 
-    if (main_op_idx == -1 || precedence <= main_precedence) {
+    bool is_right_assoc = tokens[i].type == TK_DEREF;
+
+    if (main_op_idx == -1 || precedence < main_precedence || (precedence == main_precedence && !is_right_assoc)) {
       main_op_idx = i;
       main_precedence = precedence;
     }
   }
-
   return main_op_idx;
 }
 
@@ -214,62 +226,87 @@ static ParenStatus check_parentheses(int p, int q) {
   return enclosed ? PAREN_ENCLOSED : PAREN_NOT_ENCLOSED;
 }
 
-static bool eval(int p, int q, word_t *result) {
+static word_t eval(int p, int q, bool *success) {
+  *success = false;
   ParenStatus paren_status = check_parentheses(p, q);
   if (p > q) {
     Log("Bad expression: p > q");
-    return false;
+    return 0;
   }
   else if (p == q) {
+    word_t value;
     switch (tokens[p].type){
       case TK_HEXNUM: 
-        return sscanf(tokens[p].str, "%x", result) == 1;
+        *success = sscanf(tokens[p].str, "%x", &value) == 1;
+        return *success ? value : 0;
       case TK_DECNUM: 
-        return sscanf(tokens[p].str, "%u", result) == 1;
+        *success = sscanf(tokens[p].str, "%u", &value) == 1;
+        return *success ? value : 0;
+      case TK_REGISTER: {
+        value = isa_reg_str2val(tokens[p].str, success);
+        if (!*success) {
+          Log("Invalid register: %s", tokens[p].str);
+          return 0;
+        }
+        return value;
+      }
       default: 
         Log("Bad expression: unexpected token type %d", tokens[p].type);
-        return false; 
+        return 0;
     }
   }
   else if (paren_status == PAREN_INVALID) {
     Log("Bad expression: parentheses are not matched");
-    return false;
+    return 0;
   }
   else if (paren_status == PAREN_ENCLOSED) {
-    return eval(p + 1, q - 1,result);
+    return eval(p + 1, q - 1, success);
   }
   else {
     int op = find_main_operator(p, q);
     if (op == -1) {
       Log("Bad expression: no main operator found,");
-      return false;
+      return 0;
     }
-    word_t val1;
-    word_t val2;
+    word_t result = 0;
+    if (tokens[op].type == TK_DEREF) {
+      word_t val = eval(op + 1, q, success);
+      if (!*success) return 0;
+      switch (tokens[op].type){
+        case TK_DEREF: result = vaddr_read(val, 4); break;
+        default:
+          Log("Bad expression: unexpected unary operator %d", tokens[op].type);
+          *success = false;
+          return 0;
+      }
+    }
+    else {
+      word_t val1 = eval(p, op - 1, success);
+      if (!*success) return 0;
+      word_t val2 = eval(op + 1, q, success);
+      if (!*success) return 0;
 
-    if (!eval(p, op - 1, &val1)) {
-      return false;
+      *success = false;
+      switch (tokens[op].type) {
+        case '+': result = val1 + val2; break;
+        case '-': result = val1 - val2; break;
+        case '*': result = val1 * val2; break;
+        case '/':
+          if (val2 == 0) {
+            Log("Division by zero error");
+            *success = false;
+            return 0;
+          }
+          result = val1 / val2;
+          break;
+        case TK_EQ: result = val1 == val2; break;
+        case TK_NEQ: result = val1 != val2; break;
+        case TK_AND: result = val1 && val2; break;
+        default: *success = false; return 0;
+      }
     }
-
-    if (!eval(op + 1, q, &val2)) {
-      return false;
-    }
-
-    switch (tokens[op].type) {
-      case '+': *result = val1 + val2; return true;
-      case '-': *result = val1 - val2; return true;
-      case '*': *result = val1 * val2; return true;
-      case '/':
-        if (val2 == 0) {
-          Log("Division by zero error");
-          return false;
-        }else {
-          *result = val1 / val2;
-          return true;
-        }
-      case TK_EQ: *result = val1 == val2; return true;
-      default: return false;
-    }
+    *success = true;
+    return result;
   }
 }
 
@@ -279,12 +316,11 @@ word_t expr(char *e, bool *success) {
     return 0;
   }
 
-  word_t result;
-  if (eval(0, nr_token - 1, &result)) {
-    *success = true;
-  } else {
-    *success = false;
-    return 0;
+  for (int i = 0; i < nr_token; i ++) {
+    if (tokens[i].type == '*' && (i == 0 || (tokens[i-1].type != TK_HEXNUM && tokens[i-1].type != TK_DECNUM && tokens[i-1].type != TK_REGISTER && tokens[i-1].type != ')')) ) {
+      tokens[i].type = TK_DEREF;
+    }
   }
-  return result;
+
+  return eval(0, nr_token - 1, success);
 }

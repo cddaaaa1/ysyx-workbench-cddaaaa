@@ -35,5 +35,24 @@ void isa_reg_display() {
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
+  const char *reg_name = s + 1; // skip '$' character
+  for (int i = 0; i < 32; i++) {
+    if (strcmp(reg_name, regs[i]) == 0) {
+      *success = true;
+      return cpu.gpr[i];
+    }
+  }
+  if (strcmp(reg_name, "pc") == 0) {
+    *success = true;
+    return cpu.pc;
+  }
+
+  if (strcmp(s, "$0") == 0) { // the case of "$0"
+    *success = true;
+    return 0;
+  }
+
+  Log("Invalid register: %s", s);
+  *success = false;
   return 0;
 }

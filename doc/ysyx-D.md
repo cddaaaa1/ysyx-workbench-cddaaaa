@@ -349,6 +349,21 @@
 
 - eval() 实现递归求值
 
+- 顺手实现 p 命令
+
+- 优化expr.c
+  - success 的设置 
+  - 检测表达式是否合规
+  - 处理 `find_main_operator（）`找不到主运算符，返回-1的情况
+    - 解决：在`eval()` 中添加`op==-1`的判断
+  - 处理eval()中除数为零
+  - 检查括号是否合规
+    - `check_parentheses()`检查当前表达式三种形态
+    - `PAREN_INVALID`： 括号不合法 eg: ((1+9);
+    - `PAREN_NOT_ENCLOSED`: 括号合法但是表达式未被括号包括 eg:(1)+(9)
+    - `PAREN_ENCLOSED`:合法且被包括 eg: (1+9)
+  - 添加错误日志
+  
 
 #### 实现表达式生成器（测试用例）
 
@@ -379,12 +394,39 @@
     - pclose() 返回非 0
 
 
-#### 实现表达式求值命令P
-- 
-
 <!-- ### NEMU 代码框架
 
 #### expr.c 表达式求值
 - init_regex(): 
 - make_token(): 
 - expr():  -->
+
+
+### 监视点
+
+#### GDB中的监视点
+- break main：在 main() 开始处设置普通断点。
+- run：运行程序，停在 main()。
+- next：执行 int x = 0;，使局部变量 x 进入作用域。
+- watch x：监视变量 x 的值，只有值发生变化时才停止。
+- continue：继续运行，直到 x 的值改变。
+- 再次 continue：等待下一次变化。
+- info watchpoints：查看当前监视点
+
+#### 扩展表达式求值的功能
+
+- 寄存器 `TK_REGISTER`
+  - 实现 `isa_reg_str2val()`;  
+  - `eval()` 在 `p == q` 且 token 为 `TK_REGISTER` 时调用该接口；失败记录错误并返回 `false`，成功保存寄存器值并返回 `true`
+
+- `!=` `TK_NEQ`
+
+- `&&` `TK_AND`
+  - precedence `&&` < `==` `!=` < `+` `-` < `*` `/`
+
+
+- 指针解引 `TK_DEREF`
+  - 当 * 不能作为乘号，也就是左侧还没有一个完整操作数时，应识别为指针解引用。
+
+- 
+#### 

@@ -20,7 +20,7 @@ void am_init_monitor();
 void engine_start();
 int is_exit_status_bad();
 
-#define TEST_EXPR 1
+#define TEST_EXPR 0
 
 #if TEST_EXPR
 #include "monitor/sdb/sdb.h"
