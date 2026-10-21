@@ -20,7 +20,7 @@
  */
 #include <regex.h>
 
-#define MAX_TOKEN_LEN 4096
+#define MAX_TOKEN 4096
 
 enum {
   TK_NOTYPE = 256, TK_EQ,
@@ -28,6 +28,12 @@ enum {
   /* TODO: Add more token types */
 
 };
+
+typedef enum {
+  PAREN_INVALID,
+  PAREN_NOT_ENCLOSED,
+  PAREN_ENCLOSED
+} ParenStatus;
 
 static struct rule {
   const char *regex;
@@ -75,7 +81,7 @@ typedef struct token {
   char str[32];
 } Token;
 
-static Token tokens[MAX_TOKEN_LEN] __attribute__((used)) = {};
+static Token tokens[MAX_TOKEN] __attribute__((used)) = {};
 static int nr_token __attribute__((used))  = 0;
 
 static bool make_token(char *e) {
@@ -101,8 +107,15 @@ static bool make_token(char *e) {
           break;
         }
 
-        Assert(nr_token < ARRLEN(tokens), "%s", "too many tokens in expression\n");
-        Assert(substr_len < sizeof(tokens[nr_token].str), "%s", "substring is too long\n");
+        if (nr_token >= ARRLEN(tokens)) {
+          Log("Too many tokens in expression, number of tokens: %d", nr_token);
+          return false;
+        }
+         
+        if (substr_len >= sizeof(tokens[nr_token].str)) {
+          Log("Substring is too long, substring length: %d", substr_len);
+          return false;
+        }
 
         switch (rules[i].token_type) {
           case TK_HEXNUM:
@@ -120,6 +133,7 @@ static bool make_token(char *e) {
             nr_token++;
             break;
           default:
+            Log("Unknown token type: %d", rules[i].token_type);
             return false;
         }
 
@@ -156,7 +170,7 @@ static int find_main_operator(int p, int q) {
     int precedence;
     switch (tokens[i].type) {
       case TK_EQ: precedence = 0; break;
-      case '+':
+      case '+': 
       case '-': precedence = 1; break;
       case '*':
       case '/': precedence = 2; break;
@@ -172,68 +186,105 @@ static int find_main_operator(int p, int q) {
   return main_op_idx;
 }
 
-static bool check_parentheses(int p, int q){
-  if (tokens[p].type != '(' || tokens[q].type != ')'){
-    return false;
+static ParenStatus check_parentheses(int p, int q) {
+  if (p > q) {
+    return PAREN_INVALID;
   }
-  int count = 0;
-  for (int i = p + 1; i < q; i++){
-    if (tokens[i].type == '('){
-      count++;
-    }else if (tokens[i].type == ')'){
-      if (count == 0){ //check eg. 1  )  +  (  2
-        return false;
+
+  int depth = 0;
+  bool enclosed = tokens[p].type == '(' && tokens[q].type == ')';
+
+  for (int i = p; i <= q; i++) {
+    if (tokens[i].type == '(') {
+      depth++;
+    } else if (tokens[i].type == ')') {
+      if (depth == 0) {
+        return PAREN_INVALID;
       }
-      count--;
+      depth--;
+    }
+
+    if (depth == 0 && i < q) {
+      enclosed = false;
     }
   }
 
-  return count == 0;
+  if (depth != 0) return PAREN_INVALID;
+
+  return enclosed ? PAREN_ENCLOSED : PAREN_NOT_ENCLOSED;
 }
 
-static word_t eval(int p, int q) {
+static bool eval(int p, int q, word_t *result) {
+  ParenStatus paren_status = check_parentheses(p, q);
   if (p > q) {
     Log("Bad expression: p > q");
-    return 0; 
+    return false;
   }
   else if (p == q) {
-    word_t val; 
     switch (tokens[p].type){
       case TK_HEXNUM: 
-        if (sscanf(tokens[p].str, "%x", &val) == 1) break;
+        return sscanf(tokens[p].str, "%x", result) == 1;
       case TK_DECNUM: 
-        if (sscanf(tokens[p].str, "%u", &val) == 1) break;
-      default: break; 
+        return sscanf(tokens[p].str, "%u", result) == 1;
+      default: 
+        Log("Bad expression: unexpected token type %d", tokens[p].type);
+        return false; 
     }
-    return val;
   }
-  else if (check_parentheses(p, q) == true) {
-    return eval(p + 1, q - 1);
+  else if (paren_status == PAREN_INVALID) {
+    Log("Bad expression: parentheses are not matched");
+    return false;
+  }
+  else if (paren_status == PAREN_ENCLOSED) {
+    return eval(p + 1, q - 1,result);
   }
   else {
     int op = find_main_operator(p, q);
-    word_t val1 = eval(p, op - 1);
-    word_t val2 = eval(op + 1, q);
+    if (op == -1) {
+      Log("Bad expression: no main operator found,");
+      return false;
+    }
+    word_t val1;
+    word_t val2;
+
+    if (!eval(p, op - 1, &val1)) {
+      return false;
+    }
+
+    if (!eval(op + 1, q, &val2)) {
+      return false;
+    }
 
     switch (tokens[op].type) {
-      case '+': return val1 + val2;
-      case '-': return val1 - val2;
-      case '*': return val1 * val2;
-      case '/': return val1 / val2;
-      case TK_EQ: return val1 == val2;
-      default: return 0;
+      case '+': *result = val1 + val2; return true;
+      case '-': *result = val1 - val2; return true;
+      case '*': *result = val1 * val2; return true;
+      case '/':
+        if (val2 == 0) {
+          Log("Division by zero error");
+          return false;
+        }else {
+          *result = val1 / val2;
+          return true;
+        }
+      case TK_EQ: *result = val1 == val2; return true;
+      default: return false;
     }
   }
-  return 0;
 }
-
 
 word_t expr(char *e, bool *success) {
   *success = false;
   if (!make_token(e)) {
     return 0;
   }
-  *success = true;
-  word_t result = eval(0, nr_token - 1);
+
+  word_t result;
+  if (eval(0, nr_token - 1, &result)) {
+    *success = true;
+  } else {
+    *success = false;
+    return 0;
+  }
   return result;
 }
