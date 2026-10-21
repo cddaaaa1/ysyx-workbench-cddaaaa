@@ -18,11 +18,11 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "sdb.h"
+#include "watchpoint.h"
 
 static int is_batch_mode = false;
 
 void init_regex();
-void init_wp_pool();
 word_t vaddr_read(vaddr_t addr, int len);
 
 /* We use the `readline' library to provide more flexibility to read from stdin. */
@@ -76,7 +76,7 @@ static int cmd_info(char *args){
   }else if (strcmp(arg, "r") == 0) {
     isa_reg_display();
   }else if (strcmp(arg, "w") == 0) {
-    Log("info w is not implemented yet\n");
+    display_wp();
   }else {
     printf("Unknown info subcommand: %s\n", arg);
   }
@@ -121,6 +121,37 @@ static int cmd_p(char *args){
   return 0;
 }
 
+static int cmd_w(char *args){
+  if (args == NULL) {
+    printf("Usage: w EXPR\n");
+    return 0;
+  }
+  WP *wp = new_wp(args);
+  if (wp == NULL) {
+    return 0;
+  }
+  printf("Watchpoint %d set for expression: %s\n", wp->NO, wp->e);
+  return 0;
+}
+
+static int cmd_d(char *args){
+  char *no_str = strtok(NULL, " ");
+  char *extra_arg = strtok(NULL, " ");
+  long no;
+  char trailing;
+  if (args == NULL || no_str == NULL || extra_arg != NULL ||
+      sscanf(no_str, "%ld %c", &no, &trailing) != 1 || no < 0) {
+    printf("Usage: d N\n");
+    return 0;
+  }
+  if (delete_wp(no)) {
+    printf("Watchpoint %ld deleted.\n", no);
+  } else {
+    printf("No watchpoint number %ld.\n", no);
+  }
+  return 0;
+}
+
 static int cmd_help(char *args);
 
 static struct {
@@ -136,8 +167,8 @@ static struct {
   { "x","Scan memory",cmd_x},
   { "p","Print value of expression", cmd_p},
   /* TODO: Add more commands */
-  // { "w","Set watchpoint", cmd_w },
-  // { "d","Delete watchpoint", cmd_d }
+  { "w","Set watchpoint", cmd_w },
+  { "d","Delete watchpoint", cmd_d }
 };
 
 #define NR_CMD ARRLEN(cmd_table)

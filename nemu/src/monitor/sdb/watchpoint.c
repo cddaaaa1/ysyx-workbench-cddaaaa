@@ -14,16 +14,9 @@
 ***************************************************************************************/
 
 #include "sdb.h"
+#include "watchpoint.h"
 
 #define NR_WP 32
-
-typedef struct watchpoint {
-  int NO;
-  struct watchpoint *next;
-
-  /* TODO: Add more members if necessary */
-
-} WP;
 
 static WP wp_pool[NR_WP] = {};
 static WP *head = NULL, *free_ = NULL;
@@ -39,5 +32,89 @@ void init_wp_pool() {
   free_ = wp_pool;
 }
 
-/* TODO: Implement the functionality of watchpoint */
+WP *new_wp(char *e) {
+  Assert(free_ != NULL, "No free watchpoint available.");
+  bool success;
+  word_t expr_val = expr(e, &success);
+  if (!success) {
+    Log("Invalid expression for watchpoint: %s\n", e);
+    return NULL;
+  }
 
+  WP *wp = free_;
+  free_ = free_->next;
+  wp->next = NULL;
+
+  wp->val = expr_val;
+  wp->e = strdup(e);
+
+  wp->next = head;
+  head = wp;
+  return wp;
+}
+
+void free_wp(WP *wp){
+  Assert(wp != NULL, "Invalid watchpoint.");
+  Assert(head != NULL, "No active watchpoint.");
+
+  if (head == wp) {
+    head = wp->next;
+  }else {
+    WP *prev = head;
+    while (prev->next != NULL && prev->next != wp) {
+      prev = prev->next;
+    }
+    Assert(prev->next == wp, "Watchpoint not found in the list.");
+    prev->next = wp->next;
+  }
+
+  free(wp->e);
+  wp->e = NULL;
+  wp->val = 0;
+  wp->next = free_;
+  free_ = wp;
+}
+
+bool check_wp() {
+  WP *current = head;
+  bool nemu_stop = false;
+  while (current != NULL) {
+    bool success;
+    word_t new_val = expr(current->e, &success);
+    if (!success) {
+      printf("Watchpoint %d evaluation failed: %s\n", current->NO, current->e);
+      nemu_stop = true;
+      break;
+    }
+    if (new_val != current->val) {
+      printf("Watchpoint %d: %s\n", current->NO, current->e);
+      printf("Old value: " FMT_WORD "\n New value: " FMT_WORD "\n", current->val, new_val);
+      current->val = new_val;
+      nemu_stop = true;
+    }
+    current = current->next;
+  }
+  return nemu_stop;
+}
+
+void display_wp(void) {
+  if (head == NULL) {
+    printf("No watchpoints.\n");
+    return;
+  }
+
+  printf("Num  Expression                             Value\n");
+  for (WP *wp = head; wp != NULL; wp = wp->next) {
+    printf("%-4d %-36s " FMT_WORD "\n", wp->NO, wp->e, wp->val);
+  }
+}
+
+bool delete_wp(long no) {
+  for (WP *wp = head; wp != NULL; wp = wp->next) {
+    if (wp->NO == no) {
+      free_wp(wp);
+      return true;
+    }
+  }
+  return false;
+}
