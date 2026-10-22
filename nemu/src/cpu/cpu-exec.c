@@ -34,7 +34,7 @@ static bool g_print_step = false;
 void device_update();
 
 #ifdef CONFIG_WATCHPOINT
-void _check_wp() {
+static void _check_wp() {
   if (check_wp()) {
     if (nemu_state.state == NEMU_RUNNING)
       nemu_state.state = NEMU_STOP;

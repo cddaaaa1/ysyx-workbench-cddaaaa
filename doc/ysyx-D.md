@@ -424,9 +424,159 @@
 - `&&` `TK_AND`
   - precedence `&&` < `==` `!=` < `+` `-` < `*` `/`
 
-
 - 指针解引 `TK_DEREF`
   - 当 * 不能作为乘号，也就是左侧还没有一个完整操作数时，应识别为指针解引用。
+  - `**$pc`，连续的一元解引用采用右结合。
+  - 在 `find_main_operator()` 中，遇到相同优先级的 TK_DEREF 时应保留最左边的解引用作为主运算符。
+  - 主运算符是当前表达式的根节点，因此最左边的 * 最后执行；它的右子表达式 *$pc 先执行。
 
-- 
-#### 
+#### 监视点池管理
+
+  **`new_wp()`**
+  - `free_` 串起空闲节点，`head` 串起正在使用的节点；`new_wp()` 将节点从 `free_` 移到 `head`。
+  - 取出节点时必须先保存后继，避免丢失空闲链表：
+
+  ```c
+  WP *wp = free_;
+  free_ = wp->next;
+  ```
+
+  - 头插：
+
+  ```text
+  分配 A 前：free_ -> A -> B -> C；head -> X -> Y
+  分配 A 后：free_ -> B -> C；head -> A -> X -> Y
+  ```
+
+    - 只需修改 `wp->next` 和 `head`，时间复杂度为 O(1)。
+    - 新监视点显示在最前面，分配顺序与链表顺序相反。
+
+  - 尾插：
+
+  ```text
+  分配 A 前：free_ -> A -> B -> C；head -> X -> Y
+  分配 A 后：free_ -> B -> C；head -> X -> Y -> A
+  ```
+
+    - 需要从头遍历 `head` 找到尾节点，时间复杂度为 O(n)。
+
+**`free_wp(WP *wp)`**
+  ```
+  释放前：
+  head  -> A -> B -> C ; free_ -> X -> Y
+
+  free_wp(B) 后：
+  head  -> A -> C; free_ -> B -> X -> Y
+  ```
+
+  - head 删除时两种情况
+
+> **Q：** 框架代码中定义wp_pool等变量的时候使用了关键字static, static在此处的含义是什么? 为什么要在此处使用它?
+**A：** static 表示 `wp_pool`, `head`, `free` 只对`watchpoint.c`可见，其他模块只能通过想`new_wp()` 的接口函数来操作他们。没有static, 外部文件可以直接修改链表，如果操作失误可能会导致 节点丢失，链表截断等问题。 因此使用static 是将链表的维护规范到`watchpoint.c`当中，出了问题可以迅速定位到了内部的接口函数。
+
+#### 实现监视点
+
+**扩展监视点结构**：
+
+```c
+typedef struct watchpoint {
+  int NO;// 监视点编号
+  struct watchpoint *next; //链表指针
+  char *e; // 表达式副本
+  word_t val;// 上次的求值结果
+} WP;
+```
+**监视点值变化检测**
+- 实现`check_wp()`
+  - 遍历head，在每个节点执行以下操作 
+  - 重新计算表达式值
+  - 与上一次的值`wp->val` 做比较
+  - 如果不同，打印编号，表达是，旧值和新值；函数返回nemu_stop设置为true
+
+**`check_wp()`接入 CPU 执行循环**
+- cpu.exe.c 在`trace_difftest` 最后检查监视点
+- `_check()`调用`check()` 检测到值变化设置 `nemu_state.state = NEMU_STOP;`
+
+**实现相关SDB 命令** 
+- `w EXPR` :：创建监视点；显示编号和表达式
+- `info w`：打印监视点信息；显示编号、表达式和最近一次值
+- `d N`：按编号删除监视点; 删除不存在的编号、负数、非数字和多余参数均有错误处理
+
+**添加配置开关**
+- Kconfig 设置宏`CONFIG_WATCHPOINT`
+  ```
+  config WATCHPOINT
+    bool "Enable watchpoint" // 菜单选项
+    depends on TARGET_NATIVE_ELF //只有当前构建目标为 native ELF 时才显示这个选项
+    default n //默认关闭
+    help 
+      Check registered watchpoint expressions after each instruction. // 功能说明
+  ```
+- 通过`make menuconfig` 设置
+- `IFDEF(CONFIG_WATCHPOINT, _check_wp());`
+
+#### Q：GDB 能为段错误提供哪些有用信息？
+
+**A：** 常见段错误包括解引用空指针、使用未初始化指针、访问已释放内存、重复释放、数组越界、写入只读内存和栈溢出。
+
+以空指针为例：
+
+```c
+#include <stdio.h>
+
+int main(void) {
+  int *p = NULL;
+  *p = 1;
+  printf("%d\n", *p);
+  return 0;
+}
+```
+
+编译并使用 GDB 调试：
+
+```bash
+gcc -g -O0 -o a a.c
+gdb -q ./a
+```
+
+GDB 输出：
+
+```text
+Program received signal SIGSEGV, Segmentation fault.
+0x0000555555555161 in main () at a.c:6
+6         *p = 1;
+(gdb) bt
+#0  0x0000555555555161 in main () at a.c:6
+(gdb) print p
+$1 = (int *) 0x0
+(gdb) x/i $pc
+=> 0x555555555161 <main+24>:    movl   $0x1,(%rax)
+```
+
+GDB 可以提供：
+- run: 收到 SIGSEGV
+- where:当前停在哪个函数和源码行
+- print p: 打印指针类型和指向地址，(int *) 0x0 ， 说明指向空指针
+- x/i $pc: pc 对应的机器指令
+- bt: 显示当前的函数调用链，也就是程序是如何一步步执行到崩溃位置的
+
+
+
+### 断点
+
+#### Q: 如何提高断点的效率？
+如果你在运行稍大一些的程序(如microbench)的时候使用断点, 你会发现设置断点之后会明显地降低NEMU执行程序的效率. 思考一下这是为什么? 
+
+**A：** 如果用监视点模拟断点`w $pc == ADDR`，之前实现的`check_wp()`会在每条客户机指令执行后重新求值表达式， 每条都需要经过完整的表达式求值流程， microbench 通常有数百万条指令， 累计开销很大。
+
+#### 实际调试器设置断点
+
+工作原理：
+1. 确定断点的目标位置
+2. 把目标位置指令替换成陷阱指令； x86 中将目标指令替换成int3 指令
+3. CPU 执行到int3 通知调试器
+4. 调试器恢复原指令并暂停
+
+
+
+### 如何阅读手册
