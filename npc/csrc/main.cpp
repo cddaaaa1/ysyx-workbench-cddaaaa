@@ -27,7 +27,6 @@ static void eval_and_dump()
 
 void single_cycle() {
 #ifdef YSYXSOC
-  // clock 周期 = CLK_RATIO 个 cpuClock 周期, 占空比 50%
   static int clk_cnt = 0;
   top->cpuClock = 0; eval_and_dump();
   if (++clk_cnt >= CLK_RATIO) { clk_cnt = 0; top->clock = !top->clock; }
@@ -68,7 +67,7 @@ int main(int argc, char **argv)
     unsigned long long cycle = 0;
     long long inst_count = 0;
 
-    for (; !contextp->gotFinish() IFDEF(DEBUG_TIME, && cycle < (unsigned long long)MAX_CYCLE); cycle++) {
+    for (; !contextp->gotFinish() &&  !sim.halted IFDEF(DEBUG_TIME, && cycle < (unsigned long long)MAX_CYCLE); cycle++) {
         IFDEF(NVBOARD,nvboard_update());
         sim.cycle = cycle;
         sim.retired = false;
@@ -80,7 +79,6 @@ int main(int argc, char **argv)
 
     double ipc = (double)inst_count / (double)(cycle + 1);
 #ifdef NETLIST_SIM
-    // 网表里没有 DPI-C sim_retire, 数不出退休指令数
     printf("Simulation stopped after %llu cycles (netlist)\n", cycle + 1);
 #else
     printf("Simulation stopped after %llu cycles, %lld instructions executed, IPC = %.4f (last pc = 0x%08x)\n",
@@ -91,5 +89,5 @@ int main(int argc, char **argv)
     delete tfp;
     delete top;
     delete contextp;
-    return 0;
+    return (sim.halted && sim.halt_code == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

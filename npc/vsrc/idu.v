@@ -1,25 +1,17 @@
 `include "define.vh"
 module ysyx_22040000_idu(
-	input  [31:0] inst,      // 当前指令
-	output reg   [4:0]  raddr1,    // rs1 = inst[19:15]
-	output reg   [4:0]  raddr2,    // rs2 = inst[24:20]
-	output reg   [4:0]  waddr,     // rd  = inst[11:7]
-	output reg          gpr_we,    // 是否需要写回 GPR
-	output reg   [1:0]  wb_sel,    // 写回数据来源: ALU / 访存 / PC+4
-
-	// 执行阶段
-	output reg   [31:0] imm,       // 已符号扩展的立即数
-	output reg   [3:0]  alu_op,    // ALU 控制码
-	output reg          is_jalr,   // 当前指令是否 jalr
-
-	// 访存阶段
-	output reg   [2:0]  lsu_op,    // NONE / LW / LBU / SW / SB
-
-	// CSR
-	output reg   [11:0] csr_addr,  // csrrs 的目标 CSR
-
-	// 其它
-	output reg          is_ebreak  // 当前指令是否 ebreak
+	input  [31:0] inst,     
+	output reg   [4:0]  raddr1,    
+	output reg   [4:0]  raddr2,    
+	output reg   [4:0]  waddr,     
+	output reg          gpr_we,    
+	output reg   [1:0]  wb_sel,    
+	output reg   [31:0] imm,       
+	output reg   [3:0]  alu_op,    
+	output reg          is_jalr,   
+	output reg   [2:0]  lsu_op,    
+	output reg   [11:0] csr_addr,  
+	output reg          is_ebreak  
 );
 
 	always_comb begin

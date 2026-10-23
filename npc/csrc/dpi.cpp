@@ -8,3 +8,10 @@ extern "C" void sim_retire(int pc, int inst)
 	sim.retire_pc = (uint32_t)pc;
 	sim.retired   = true;
 }
+
+
+extern "C" void ebreak(int code)
+{
+    sim.halt_code = uint32_t(code);
+    sim.halted = true;
+}

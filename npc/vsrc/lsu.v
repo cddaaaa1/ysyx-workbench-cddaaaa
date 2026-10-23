@@ -2,18 +2,18 @@
 module ysyx_22040000_lsu(
         input         clk,
         input         rst,
-        input         valid,       // 本拍 inst 有效(IFU 的 wait 拍), 即发出访存请求
-        input  [2:0]  lsu_op,      // NONE / LW / LBU / SW / SB, 来自 IDU
-        input  [31:0] addr,        // 访存地址, 来自 EXU 的 alu_result
-        input  [31:0] wdata,       // 要写入的数据, 来自 gpr 读端口 rdata2
-        input  [31:0] lsu_rdata,   // SimpleBus: 存储器返回的读数据
-        output [31:0] rdata,       // 读出的数据, 送给 WBU
-        output        lsu_busy,    // 正在等存储器返回数据(指令还没结束)
-        output        lsu_misalign,// lw/sw 的地址未 4 字节对齐
+        input         valid,       
+        input  [2:0]  lsu_op,      
+        input  [31:0] addr,        
+        input  [31:0] wdata,       
+        input  [31:0] lsu_rdata,   
+        output [31:0] rdata,       
+        output        lsu_busy,    
+        output        lsu_misalign,
         output [31:0] lsu_addr,
         output [31:0] lsu_wdata,
         output [3:0]  lsu_wmask,
-        output [1:0]  lsu_size,    // SimpleBus/AXI 的 size: 2^size 字节, 字=2'b10, 字节=2'b00
+        output [1:0]  lsu_size,    
         output        lsu_wen,
         output        lsu_reqValid,
         input         lsu_respValid
@@ -30,11 +30,11 @@ module ysyx_22040000_lsu(
         else                         state <= lsu_respValid ? `LSU_IDLE : `LSU_WAIT;
     end
 
-    assign lsu_reqValid = (state == `LSU_IDLE) && is_mem;  // 单拍脉冲
+    assign lsu_reqValid = (state == `LSU_IDLE) && is_mem; 
     assign lsu_busy     = (state == `LSU_WAIT);  
 
     assign lsu_addr  = is_mem ? addr : 32'h0;
-    assign lsu_wen   = is_store;    // 读时 wen = 0, 规范里没有单独的读使能
+    assign lsu_wen   = is_store; 
     assign lsu_size  = (is_mem && (lsu_op == `LSU_LW || lsu_op == `LSU_SW)) ? 2'b10 : 2'b00;
     assign lsu_wdata = (lsu_op == `LSU_SB) ? (wdata << (addr[1:0] * 8)) : wdata;
     assign lsu_wmask = (lsu_op == `LSU_SB) ? (4'h1 << addr[1:0])

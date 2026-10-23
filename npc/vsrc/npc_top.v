@@ -55,7 +55,6 @@ ysyx_22040000 npc (
     );
 
 `ifdef NETLIST_SIM
-	// 网表里没有 `ifndef SYNTHESIS 那套 ebreak 打印/结束逻辑, 由仿真侧在取到 ebreak 时收尾
 	`include "define.vh"
 	always @(posedge clock)
 		if (io_ifu_respValid && io_ifu_rdata == `INST_EBREAK) $finish;

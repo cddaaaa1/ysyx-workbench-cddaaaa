@@ -19,8 +19,6 @@ module ysyx_22040000_exu(
 		.result(alu_result)
 	);
 
-	// jalr 的目标地址就是 (rs1 + imm), 因此直接复用 ALU 的结果, 只把最低位清零
-	// (RISC-V 规定 jalr 目标的最低比特恒为 0)
 	assign jump        = is_jalr;
 	assign jump_target = alu_result & ~32'h1;
 

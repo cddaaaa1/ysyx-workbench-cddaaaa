@@ -36,7 +36,6 @@ module dpic_mem(
         else                    lfsr <= {lfsr[4] ^ lfsr[3] ^ lfsr[2] ^ lfsr[0], lfsr[7:1]};
     end
 
-    // 取指: 请求那拍锁存地址, 延迟到了再把 ifu_rdata 和 ifu_respValid 一起给出
     always @(posedge clk) begin
         if (rst) begin
             ifu_state     <= `MEM_IDLE;
@@ -64,7 +63,6 @@ module dpic_mem(
         end
     end
 
-    // 访存: 读延迟由 LFSR 决定; 写在请求那拍直接生效(不需要响应, 也保证访存顺序)
     always @(posedge clk) begin
         if (rst) begin
             lsu_state     <= `MEM_IDLE;

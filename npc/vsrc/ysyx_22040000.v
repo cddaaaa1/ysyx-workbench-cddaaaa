@@ -178,6 +178,7 @@ module ysyx_22040000(
 	always @(posedge clock) if (commit) $sim_retire(pc, inst);
 `else
 	import "DPI-C" function void sim_retire(input int pc, input int inst);
+	import "DPI-C" function void ebreak(input int code);
 	always @(posedge clock) begin
 		if (commit) sim_retire(pc, inst);
 	end
@@ -186,10 +187,14 @@ module ysyx_22040000(
 	wire [31:0] a0 = u_gpr.rf[10];
 
 	always @(posedge clock) begin
-		if (is_ebreak && commit) begin
+		if (!reset && is_ebreak && commit) begin
 			if (a0 == 32'd0) $display("EBREAK: GOOD TRAP");
 			else             $display("EBREAK: BAD TRAP (a0 = %0d)", a0);
+`ifdef __ICARUS__
 			$finish;
+`else
+			ebreak(a0);
+`endif
 		end
 	end
 
