@@ -55,6 +55,7 @@ static PLI_INT32 pmem_load_calltf(PLI_BYTE8 *ud) {
 
 	if (a == NULL || v.value.str == NULL || pmem_load(v.value.str) < 0) {
 		vpi_printf("[VPI] $pmem_load: 加载失败 (检查 +img=<path>)\n");
+		vpip_set_return_value(1);
 		vpi_control(vpiFinish, 1);
 	}
 	return 0;
@@ -64,6 +65,19 @@ static PLI_INT32 sim_retire_calltf(PLI_BYTE8 *ud) {
 	(void)ud;
 	g_inst++;
 	return 0;
+}
+
+static PLI_INT32 ebreak_calltf(PLI_BYTE8 *ud) {
+    (void)ud;
+
+    vpiHandle sys = vpi_handle(vpiSysTfCall, NULL);
+    vpiHandle it = vpi_iterate(vpiArgument, sys);
+    uint32_t code = arg_u32(&it);
+    vpi_free_object(it);
+
+    vpip_set_return_value(code == 0 ? 0 : 1);
+    vpi_control(vpiFinish, 0);
+    return 0;
 }
 
 static PLI_INT32 at_end(p_cb_data cb) {
@@ -77,6 +91,7 @@ static s_vpi_systf_data tf_list[] = {
 	{ .type = vpiSysTask,                            .tfname = "$pmem_write", .calltf = pmem_write_calltf },
 	{ .type = vpiSysTask,                            .tfname = "$pmem_load",  .calltf = pmem_load_calltf  },
 	{ .type = vpiSysTask,                            .tfname = "$sim_retire", .calltf = sim_retire_calltf },
+	{ .type = vpiSysTask,                            .tfname = "$ebreak", .calltf = ebreak_calltf },
 };
 
 static void register_all(void) {

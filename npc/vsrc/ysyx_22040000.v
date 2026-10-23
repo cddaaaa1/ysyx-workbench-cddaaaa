@@ -191,7 +191,7 @@ module ysyx_22040000(
 			if (a0 == 32'd0) $display("EBREAK: GOOD TRAP");
 			else             $display("EBREAK: BAD TRAP (a0 = %0d)", a0);
 `ifdef __ICARUS__
-			$finish;
+			$ebreak(a0);
 `else
 			ebreak(a0);
 `endif
