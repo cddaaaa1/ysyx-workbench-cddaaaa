@@ -1,274 +1,120 @@
-# ysyx 学习记录 D 阶段
-
-## D1 从c代码到二进制程序
-
-### 预处理
-
-#### 观察预处理结果
-- 预处理后的 `main` 函数：
-
-  ```c
-  int main() {
-    printf("Hello World!\n");
-
-
-
-    printf("RISC-V");
-    return 0;
-  }
-  ```
-
-- 主要变化：
-  - 宏 `MSG` 被展开，反斜杠换行和注释被删除：
-
-    ```printf(MSG /* "hi!\n" */); ```  变为： ``` printf("Hello World!\n"); ```
-
-  - 条件编译部分因当前环境未定义 `__riscv` 而被移除。
-  - `_concat(pr, intf)` 被展开为 `printf`。
-  - `_str(RISC-V)` 被展开为 `"RISC-V"`。
-
-#### 如何寻找头文件
- - `gcc -E a.c --verbose > /dev/null`
-    - gcc: GNU 编译器集合，最常用来编译 C 和 C++ 代码
-    - -E： 只执行预处理阶段，不进行编译、汇编和链接
-    - --verbose: 输出 GCC 的详细信息
-    - `> /dev/null`: ：把标准输出丢弃，不保存预处理后的 C 代码
- - 输出结果中和头文件相关的内容 
-    - `/usr/lib/gcc/x86_64-linux-gnu/15/include`: GCC 自带的内部头文件目录，包含编译器相关的头文件
-    - `/usr/local/include`: 本地管理员或用户安装的第三方头文件目录
-    - `/usr/include/x86_64-linux-gnu`:针对当前目标平台 x86_64-linux-gnu 的系统头文件目录
-    - `/user/include`: Linux 系统通用的头文件目录，stdio.h 等标准 C 库头文件通常可以在这里找到
- -  通过man gcc 阅读 GCC 手册中关于 -I 的说明
-    - man gcc; 进入手册后输入 /-I ; 按回车搜索，再按 n 查看下一个匹配项
-    - -I dir:  Add the directory dir to the list of directories to be searched for header  files  during  preprocessing.
- -  创建自己的stdio.h 
-    -  /fake_inlcude/stdi.h 中写入 ```#define printf(...) custom_printf(__VA_ARGS__) ```
-    - 然后 gcc -I./fake_include -E a.c 
-    - 预处理结果``` printf()``` 变成 ``` custom_printf()```
-
-#### 用面向RISC-V架构的gcc进行预处理
- - `riscv64-linux-gnu-gcc -E a.c` 
- - `riscv64-linux-gnu-gcc ` 预先定义了 __riscv 使`printf("Hello RISC-V!\n");`被保留
-
-#### 对比gcc和riscv64-linux-gnu-gcc的预定义宏
-- 分别保存两个编译器的预定义宏：
-
-  ```sh
-  gcc -dM -E - < /dev/null | sort > gcc.macros
-  riscv64-linux-gnu-gcc -dM -E - < /dev/null | sort > riscv64-gcc.macros
-  ```
-
-- 使用 `diff` 对比两个文件：
-
-  ```sh
-  diff -u gcc.macros riscv64-gcc.macros
-  ```
-
-- 典型差异：
-
-  ```c
-  // gcc
-  #define __x86_64 1
-  #define __x86_64__ 1
-
-  // riscv64-linux-gnu-gcc
-  #define __riscv 1
-  #define __riscv_xlen 64
-  #define __riscv_i 2001000
-  #define __riscv_m 2000000
-  #define __riscv_a 2001000
-  #define __riscv_f 2002000
-  #define __riscv_d 2002000
-  #define __riscv_c 2000000
-  ```
-  反映了两个编译器面向目标架构不同。
-
-
-### 编译
-
-##### 词法分析
-- 识别并记录源文件中的每一个token
-
-- `clang -fsyntax-only -Xclang -dump-tokens a.c`
-
-##### 语法分析
-- 识别出的token组织成树状结构
-
-- `clang -fsyntax-only -Xclang -ast-dump a.c`
-  - DeclStmt: 声明语句
-  - VarDecl: 声明变量
-  - DeclRefExpr: ：对已经声明的变量或函数的引用
-  - CallExpr: 函数调用表达式
-  - ReturnStmt: 返回语句
-
-#### 语义分析
-- `clang a.c --analyze -Xanalyzer -analyzer-output=text`
-
-- 
-  ```
-    a.c:6:6: warning: Use of memory after it is freed [unix.Malloc]
-    6 |   *p = 0;
-      |   ~~ ^
-  ```
-
-#### 中间代码生成
-
-#### 目标代码生成
-- 使用 Clang 生成面向 RISC-V 目标平台的汇编代码：
-
-  ```sh
-  clang -S a.c --target=riscv64-linux-gnu -o a.s
-  ```
-
-- C 代码与 RISC-V 汇编的对应关系：
-
-  ```c
-  volatile int x = 10, y = 20;
-  int z = x + y;
-  printf("z = %d\n", z);
-  return 0;
-  ```
-
-  ```asm
-  li   a0, 10
-  sw   a0, -24(s0)
-
-  li   a0, 20
-  sw   a0, -28(s0)
-  ```
-
-  `li` 将立即数加载到寄存器，`sw` 将 32 位整数写入栈上的局部变量位置，
-  对应 `x = 10` 和 `y = 20`。
-
-  ```asm
-  lw   a0, -24(s0)
-  lw   a1, -28(s0)
-  addw a0, a0, a1
-  sw   a0, -32(s0)
-  ```
-
-  `lw` 从内存读取 32 位整数，`addw` 执行 32 位加法，最后用 `sw` 保存结果，
-  对应 `z = x + y`。
-
-  ```asm
-  lw     a1, -32(s0)
-  auipc  a0, %pcrel_hi(.L.str)
-  addi   a0, a0, %pcrel_lo(.Lpcrel_hi0)
-  call   printf
-  ```
-
-  在 RISC-V 调用约定中，`a0` 和 `a1` 用于传递函数参数。这里 `a0` 保存格式
-  字符串的地址，`a1` 保存 `z` 的值，对应 `printf("z = %d\n", z)`。
-
-  ```asm
-  .L.str:
-      .asciz "z = %d\n"
-  ```
-
-  `.asciz` 定义以空字符结尾的字符串。
-
-  ```asm
-  ld   ra, 40(sp)
-  ld   s0, 32(sp)
-  addi sp, sp, 48
-  ret
-  ```
-
-  这些指令恢复保存的寄存器、释放栈空间并返回，对应 `return 0` 以及函数结束。
-
-- 添加 `-O1` 后的RISC64汇编后：
-  - 栈空间从48字节优化到16字节 
-  - 省略了帧指针s0
-  - int x =10 , y =20 保留， 因为volatile
-  - 直接将x+y 结果写入a1传参寄存器
-
-### 二进制文件的生成和执行
-
-#### 汇编
-- 
-  ```sh
-  clang -c a.c --target=riscv64-linux-gnu
-  riscv64-linux-gnu-objdump -d a.o
-  ``` 
-
-- 对比汇编和反汇编
-  - a.s 中的call printf 变成实际指令 aupi ra, 0x0 jalr ra. 
-  - a.o 中包含机器码
-  - 
-
-#### 链接
-- 
-  ```sh
-  clang a.c --target=riscv64-linux-gnu -o a.out
-  riscv64-linux-gnu-objdump -d a.out
-  ``` 
-
-- 链接后
-  - main 地址： 
-    - a.o : 0x0000
-    - a.out: 0x06a2
-
-  -  重定位
-    - .L.str 的地址确定：addi a0, a0, 34 # 6f4 <_IO_stdin_used+0x4>
-    - prtinf 的调用地址确定： jal 5a0 <printf@plt>
-
-#### 执行
-- `./a.out`
-
-- 数列求和程序
-  ``` c 
-  int main(void) {
-      int n = 1e9;   
-      long long sum = 0;    
-
-      for (int i=1; i<=n; i++){
-          sum +=i;
-      }
-      printf("%lld\n", sum);
-
-      return 0;
-  }
-  ```
-
-- 对比编译优化后的性能差异
-  - `clang sum.c -o sum.out && time ./sum.out ` ： user    0m0.053s
-  - `-O0`: user    0m0.050s
-  - `-O1`: user    0m0.000s 编译器直接算出了结果，优化掉了循环，程序只是在打印常量
-  - `-O2`: user    0m0.000s 同上
-
-- 程序的开始和返回
-  -  GNU Debugger，即 GNU 调试器，用来观察和控制程序运行过程
-   ```sh 
-    clang -g sum.c -o sum.out
-    gdb ./sum.out 
-    (gdb) statii 
-    (gdb) x/i $pc
-   ```
-  第一条指令： 0x7ffff7fe3340 <_start>:     mov    %rsp,%rdi  ， 保存操作系统传入的初始栈位置
-  程序不由main()开始
-
-  -  程序不是从main()返回后就结束，而是在exit_group 系统调用后结束
-
-### 手册行为和编码规范
-- 程序的行为不是只由源代码决定的，还受到语言标准、编译器、运行时环境和目标平台的共同影响。
-
-<!-- #### 标准规范的实现
-
-#### 程序执行的语义
-
-#### 未指定行为
-- 对于未指定行为，不同编译器会有不同的效果；
-
-#### 实现定义行为
-
-#### 区域特定行为
-
-#### 未定义行为
-
-#### 应用程序二进制接口 -->
-
-
 ## D2 简易调试器
+
+### NEMU 代码学习
+
+#### 整体结构
+
+nemu/
+├── src/
+│   ├── nemu-main.c         程序入口
+│   ├── monitor/            启动初始化、运行控制
+│   │   ├── monitor.c       参数解析、加载程序镜像、初始化各模块
+│   │   └── sdb/            简易调试器
+│   │       ├── sdb.c       命令解析与分发
+│   │       ├── expr.c      表达式求值
+│   │       └── watchpoint.c 监视点管理与检查
+│   ├── engine/interpreter/ 解释器入口、结束与异常状态处理
+│   ├── cpu/
+│   │   ├── cpu-exec.c      指令执行循环
+│   │   └── difftest/       差分测试框架与接口
+│   ├── isa/
+│   │   └── riscv32/        RISC-V32 专属实现
+│   │       ├── init.c      初始 PC、内置程序
+│   │       ├── inst.c      译码、操作数提取、指令执行
+│   │       ├── reg.c       寄存器显示与按名字查询
+│   │       ├── include/    ISA 相关数据结构
+│   │       └── system/     中断、异常、地址翻译接口
+│   ├── memory/             内存访问
+│   ├── device/             外设、MMIO 等
+│   └── utils/              日志、计时、反汇编、运行状态等
+├── include/                公共类型、接口、宏定义
+├── configs/                配置模板
+├── scripts/                配置、编译、运行规则
+├── tools/                  表达式生成器、配置工具等
+├── Kconfig                 配置项定义
+├── .config                 当前选择的配置
+└── Makefile                构建入口
+
+#### 启动流程
+
+main() -> init_monitor() 初始化 NEMU 的运行环境 -> engine_start() 进入运行控制流程 -> sdb_mainloop （调试） 或者 cmd_c （批处理）
+
+**`init_monitor()`**:
+- `parse_args(argc, argv)`：解析启动参数，确定程序镜像、日志路径、批处理模式和 DiffTest 参数等。
+- `init_rand()`：设置随机数种子
+- `init_log(log_file)`：初始化日志输出
+- `init_mem()`：初始化模拟物理内存
+- `IFDEF(CONFIG_DEVICE, init_device())`：开启设备支持时，初始化设备及相关映射。
+- `init_isa()`：进行指令集相关初始化
+- `long img_size = load_img()`：若指定外部镜像，将其读入复位地址对应的模拟内存并返回镜像大小；未指定时保留内置程序
+- `init_difftest(diff_so_file, img_size, difftest_port)`：初始化差分测试；未开启 DiffTest 时，该函数为空。
+- `init_sdb()`：初始化简易调试器，包括编译表达式分词使用的正则表达式、初始化监视点池。
+- `IFDEF(CONFIG_ITRACE, init_disasm())`：开启指令跟踪时，初始化反汇编工具，用于将机器码转换为汇编文本。
+- `welcome()`：显示欢迎信息，包括指令集、跟踪开关、编译时间和帮助提示。
+
+**`engine_start`**: 
+- 启用 `CONFIG_TARGET_AM`：直接调用 `cpu_exec(-1)`
+- 启用 `CONFIG_TARGET_AM`： 进入简易调试器， `sdb_mainloop()`
+- `is_exit_status_bas`决定程序退出码
+
+#### 简易调试器（sdb）
+
+**`init_sdb()`**
+- 初始化正则表达式 `init_regex()` , 初始化检查点 `init_wp_pool()`
+
+**`sdb_mainloop()`**: 
+- 读取输入 *str 
+- 分离命令 *cmd , 参数 *args 
+- 在cmd_table[] 中查找并调用对应处理函数; 处理函数返回负数时退出循环。
+
+**`expr.c`**: 解析并计算表达式
+
+**`watchpoint.c`**:  管理监视点; 
+
+#### 指令执行循环（cpu-exec.c ）
+
+**`cpu_exe(n)`**: 一次执行指令的入口 eg. cmd_si 调用
+- 检查运行状态
+- 记录开始时间
+- 调用execute(n) 
+- 记录结束时间
+- 更新状态: NEMU_STOP 暂停， 之后可以继续执行； NEMU_ABORT: 出现异常； NEMU_END: 程序结束，输出GOODTRAP/ BADTRAP 
+
+**`Decode`**: 
+```c
+typedef struct Decode {
+  vaddr_t pc; // 当前指令的起始地址
+  vaddr_t snpc; // 顺序执行一下条指令的地址
+  vaddr_t dnpc; // 本条指令执行后去往的地址
+  ISADecodeInfo isa; //机器码
+  IFDEF(CONFIG_ITRACE, char logbuf[128]);
+} Decode;
+```
+
+**`execute(n)`**: 
+- `Decode s`: 保存处理当前一条指令所需的信息
+- `exec_once (&s, cpu.pc)`: 
+- `trace_and_difftest(&s,cpu.pc)`: trace，difftest 和监视点检查
+
+**`exec_once(Decode *s, vaddr_t pc)`**
+
+```c
+  s->pc = pc;  // 保存当前指令的起始地址，处理这条指令时保持不变
+  s->snpc = pc; // 设置取指起点，随后取指过程会推进 snpc
+  isa_exec_once(s); //调用具体 ISA 的实现，完成取指、译码和执行，确定 dnpc
+  cpu.pc = s->dnpc; // 将实际下一条指令地址写回 CPU
+```
+
+
+**`isa_exec_once(Decode *s)`**
+- `inst_fetch(&s->snpc, 4)`: 读取机器码得到 s->isa.inst, 同时将snpc 增加4
+- `decode_exec(Decode *s)`: 
+  - 设置dnpc， 默认等于snpc; 跳转分支指令可以再修改
+  - 匹配并执行指令
+  - 保证零寄存器为0
+
+
+**为什么要多个PC变量**
 
 ### PA1 - RTFSC
 
@@ -560,8 +406,6 @@ GDB 可以提供：
 - x/i $pc: pc 对应的机器指令
 - bt: 显示当前的函数调用链，也就是程序是如何一步步执行到崩溃位置的
 
-
-
 ### 断点
 
 #### Q: 如何提高断点的效率？
@@ -577,6 +421,75 @@ GDB 可以提供：
 3. CPU 执行到int3 通知调试器
 4. 调试器恢复原指令并暂停
 
-
-
 ### 如何阅读手册
+
+#### 手册
+
+- [i386 read online](https://nju-projectn.github.io/i386-manual/toc.htm)
+  - Chapter 5 Memory Management - 5.1 Segment Translation - Selector
+
+- [RISC-V Instruction Set Manual-V1-unpriv](https://github.com/riscv/riscv-isa-manual/releases/download/riscv-isa-release-382fd8b-2024-04-11/unpriv-isa-asciidoc.pdf) [RISC-V Instruction Set Manual-V2-priv](https://github.com/riscv/riscv-isa-manual/releases/download/riscv-isa-release-382fd8b-2024-04-11/priv-isa-asciidoc.pdf)
+
+
+#### 必答题
+
+**1+2...100的程序的状态机**
+```
+0: mov  r1, 0         |  pc0: r1 = 0;
+1: mov  r2, 0         |  pc1: r2 = 0;
+2: addi r2, r2, 1     |  pc2: r2 = r2 + 1;
+3: add  r1, r1, r2    |  pc3: r1 = r1 + r2;
+4: blt  r2, 100, 2    |  pc4: if (r2 < 100) goto pc2;   // branch if less than
+5: jmp 5              |  pc5: goto pc5;
+```
+```
+(0, x, x)
+(1, 0, x)
+(2, 0, 0)
+第1次循环： 
+(3, 0, 1)
+(4, 1, 1)
+(2, 1, 1)
+第2次循环：
+(3, 1, 2)
+(4, 3, 2)
+(2, 3, 2)
+
+第99次循环
+(3, 4851, 99)
+(4, 4950, 99)
+(2, 4950, 99)
+
+第100次循环
+(3, 4950, 100)
+(4, 5050, 100)
+(5, 5050, 100)
+```
+**riscv32有哪几种指令格式?**
+4种核格式 R/I/S/, 2种立即数编码变体 B/J 
+
+**LUI指令的行为是什么?**
+lui (load upper immediate) 加载高位立即数; 指令中的 20 位立即数字段放到目标寄存器的高 20 位，低 12 位全部置零
+
+如： lui t0, 0x12345 
+执行后： t0 = 0x12345000
+
+**mstatus寄存器的结构是怎么样的?**
+在RV32 中它是一个 32 位 CSR，地址为 0x300，属于控制与状态寄存器，通过不同位域记录、控制中断使能、陷阱前的特权级等状态
+
+
+**统计总行数**
+
+统计所有 .c、.h 文件的总行数
+```sh
+find nemu -type f \( -name '*.c' -o -name '*.h' \) -exec cat {} + | wc -l
+
+```
+排除空行和只有空白字符的行
+```sh 
+find nemu -type f \( -name '*.c' -o -name '*.h' \) -exec cat {} + | grep -c '[^[:space:]]'
+```
+
+**gcc中的-Wall和-Werror有什么作用?**
+-Wall: 开启常用警告，如未使用的变量、未初始化的变量使用、函数返回值类型不匹配
+-Werror: 把所有的Warning当作Error
