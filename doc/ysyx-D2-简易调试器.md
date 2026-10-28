@@ -97,7 +97,7 @@ typedef struct Decode {
 - `trace_and_difftest(&s,cpu.pc)`: trace，difftest 和监视点检查
 
 **`exec_once(Decode *s, vaddr_t pc)`**
-
+函数覆盖了指令周期的所有阶段: 取指, 译码, 执行, 更新PC
 ```c
   s->pc = pc;  // 保存当前指令的起始地址，处理这条指令时保持不变
   s->snpc = pc; // 设置取指起点，随后取指过程会推进 snpc
@@ -106,15 +106,94 @@ typedef struct Decode {
 ```
 
 
-**`isa_exec_once(Decode *s)`**
-- `inst_fetch(&s->snpc, 4)`: 读取机器码得到 s->isa.inst, 同时将snpc 增加4
-- `decode_exec(Decode *s)`: 
-  - 设置dnpc， 默认等于snpc; 跳转分支指令可以再修改
-  - 匹配并执行指令
-  - 保证零寄存器为0
+#### 指令处理流程（riscv32/inst.c）
+
+**取指 `inst_fetch(vaddr_t *pc, int len) `**
+
+```c
+static inline uint32_t inst_fetch(vaddr_t *pc, int len) {
+  uint32_t inst = vaddr_ifetch(*pc, len); // 会通过paddr_read()来访问内存
+  (*pc) += len; // 更新PC
+  return inst;
+}
+```
+
+**译码与执行 `decode_exec()`**
+
+模式匹配指令
+```c
+//                    要匹配的机器码位            |指令名|  按U提取操作数  | 匹配后执行的c语句
+INSTPAT("??????? ????? ????? ??? ????? 00101 11", auipc,      U         , R(rd) = s->pc + imm);
+```
+
+
+**`decode_exec(Decode *s)`宏展开后** 
+```c
+{ const void * __instpat_end = &&__instpat_end_; //
+do {
+  uint64_t key,   // 要匹配的值，只包括0，1
+           mask,  // 掩码
+           shift; // 右移，跳过模式末尾的?
+  pattern_decode("??????? ????? ????? ??? ????? 00101 11", 38, &key, &mask, &shift); // shift = 0 ; make = 0x7f; key = 0x17
+  if ((((uint64_t)s->isa.inst >> shift) & mask) == key) {
+    {
+      int rd = 0; 
+      word_t src1 = 0, src2 = 0, imm = 0;
+      decode_operand(s, &rd, &src1, &src2, &imm, TYPE_U); // 提取操作数
+      R(rd) = s->pc + imm; // 执行
+    }
+    goto *(__instpat_end); // 跳到匹配块末尾，停止尝试后面的规则
+  }
+} while (0);
+// ...
+__instpat_end_: ; }
+```
+
+**`decode_operand`提取操作数**
+```c
+#define src1R() do { *src1 = R(rs1); } while (0)
+#define src2R() do { *src2 = R(rs2); } while (0)
+#define immI() do { *imm = SEXT(BITS(i, 31, 20), 12); } while(0) //取出 12 位，符号扩展
+#define immU() do { *imm = SEXT(BITS(i, 31, 12), 20) << 12; } while(0) //取出 20 位，符号扩展后左移 12 位
+#define immS() do { *imm = (SEXT(BITS(i, 31, 25), 7) << 5) | BITS(i, 11, 7); } while(0) //拼成 12 位立即数，并符号扩展
+
+static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_t *imm, int type) {
+  uint32_t i = s->isa.inst;
+  int rs1 = BITS(i, 19, 15);
+  int rs2 = BITS(i, 24, 20);
+  *rd     = BITS(i, 11, 7); //固定位置提取出寄存器号
+  switch (type) {
+    case TYPE_I: src1R();          immI(); break; 
+    case TYPE_U:                   immU(); break;
+    case TYPE_S: src1R(); src2R(); immS(); break;
+    case TYPE_N: break;
+    default: panic("unsupported type = %d", type);
+  }
+}
+```
+
+**PC 更新**
+
+inst.c 中确认 s->dnpc, 最终由`exec_once()` 执行 `cpu.pc = s->dnpc`
 
 
 **为什么要多个PC变量**
+
+```
+100: jmp 102
+101: add
+102: xor
+```
+静态顺序： jmp → add → xor
+动态顺序： jmp → xor
+
+对应到NEMU： 
+| 变量 | 表示什么 | 上例中执行 jmp 后 |
+|---|---|---:|
+| s->pc | 当前指令地址 | 100 |
+| s->snpc | 按代码顺序排列的下一条指令地址 | 101 |
+| s->dnpc | 实际下一条要执行的指令地址 | 102 |
+
 
 ### PA1 - RTFSC
 
@@ -443,6 +522,7 @@ GDB 可以提供：
 5: jmp 5              |  pc5: goto pc5;
 ```
 ```
+(PC, r1, r2)
 (0, x, x)
 (1, 0, x)
 (2, 0, 0)

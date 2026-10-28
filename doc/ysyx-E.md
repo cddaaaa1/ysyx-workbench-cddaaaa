@@ -273,8 +273,9 @@
 1. TX接入
    - 设置 NVBoard 的除数
       - ysyxSOC UART: 除数(16550 寄存器) = 13
-        - 25M/115200/16 = 13.56 → 截断 13 (和 SoC 里 loader 用的值一致)
-        - 一个 bit = 16 × 13 = 208 个时钟 (16 拍 enable/bit, enable 每 13 clk 一拍)
+        - 系统时钟（25MHz）/ 除数个时钟产生一个参考时钟 /16个节拍对应一个bit =波特率： 115200 bit/s
+        - 25M/115200/16 = 13.56 → 截断 13 
+        - 一个 bit = 16 × 13 = 208 个时钟 
       - NVBoard: divisor = 16 × 13 = 208
         - NVBoard 每 divisor 次 nvboard_update() 采 1 个 bit; nvboard_update() 每周期调一次
         - 所以 NVBoard divisor = 1 bit 的时钟数 = 16 × UART16550除数
@@ -470,7 +471,7 @@
   - `npc/Makefile` 新增 `lint` 目标: `make lint ARCH=minirv-npc` (或 `minirv-ysyxsoc`)
   - 仅剩 UNUSEDSIGNAL,确认后保留: `misalign` (供仿真环境使用) / `lsu_size` (仅 npc 流程, `dpic_mem` 用不到)
 
-5. iverilog四值仿真 (iverilog 不支持 DPI-C, 改用 VPI)
+5. iverilog四值仿真 (iverilog 不支持 DPI-C, 改用 x)
   - 思路: RTL 里调 `$pmem_read`/`$pmem_write` VPI 系统任务, 由 VPI 模块反过来调 C 侧的 `pmem_read()`/`pmem_write()`
   - cpp 侧
     - `csrc/vpi.c` (新): VPI 模块, 注册 `$pmem_read` / `$pmem_write` / `$pmem_load` / `$sim_retire`; 取实参用 `vpi_get_value`, 返回值 `vpi_put_value` 到 `vpiSysTfCall`
@@ -534,6 +535,19 @@
   - Signoff Package export 到 `/home/cddaaaa/Projects/ecos/ysyx_E_npc/npc_signoff_package.tar.gz`
 
 
+### 答辩前准备
+
+- 发现main.c 返回值问题
+
+- riscv-tests
+
+`make -C riscv-tests ARCH=minirv-npc TEST_ISA=i run ` ALL PASS
+`make -C riscv-tests ARCH=minirv-ysyxsoc TEST_ISA=i run ` ALL PASS
+
+- cpu-tests
+`make -C am-kernels/tests/cpu-tests ARCH=minirv-npc run` 除开 wrong  ALL pass
+`make -C am-kernels/tests/cpu-tests ARCH=minirv-ysyxsoc run` 除开 wrong  ALL pass
+
 # 第五周 
 
 补F阶段的实验，必做题，
@@ -547,10 +561,11 @@
 - archbench 303 无结果： 303.cproc 是编译器，启动就必须 fopen("input/train-Block.i") 读源文件，而 minirv-npc 平台上 FILE 这一层不可用（klib 是预编译且混淆的 fileio.o，本地没有 fileio.c 源码），于是 AM Panic: unsupport FILE → halt(1) → HIT BAD TRAP: a0=1，程序没跑到打印 [RESULT] 就结束了，所以记 0 分、显示"无结果"。
 - ~~ebreak 改回 DPI-c （改成直接在RTL 里面 $finish）~~
 - ~~Difftest 在加入系统总线后就没有更新了~~
-- 调整csrc ; 现在分了组，有使用extern 全局变量, 考虑修
-- 兼容以前的任务
+- ~~兼容以前的任务~~
 - 改idu 
 - CLK_RATIO > 1 时跑不通(实测 k=2/k=3 都挂, 留待以后解决): 慢时钟域设备的时间被放大 k 倍 —— PSRAM 上电序列(50 000 个 `clock` 周期, k=3 时 = 150 000 个 CPU 周期)期间 loader 就发出第一个 PSRAM 写, 该访问要等 ~230 000 个 CPU 周期才完成, 整条 AXI 链路(取指/访存)在此期间全冻结, 恢复后 CPU 的 PC 已落到非法地址(`0xFEC0007A`)跑飞; 分频波形形状/相位、倍频比大小、组合环(Verilator lint)、CDC 相位断言(`--assert`)均已排除。
-- gpr.v 中 x0 恒为零的逻辑
-- 数电实验23678
-- 配置codex 
+- ~~gpr.v 中 x0 恒为零的逻辑~~
+- ~~数电实验23678~~
+- ~~配置codex~~ 
+- `make -C am-kernels/tests/cpu-tests/  ARCH=minirv-npc SIM=iverilog ALL=wrong run`  wrong 程序PASS, 本因该FAIL; 原始iverilog 使用$finish 让仿真正常结束， 没有将a0=1 转成非零退出码
+  - 修改：RTL 传结果 → VPI 设置退出码 → Makefile 判断失败
