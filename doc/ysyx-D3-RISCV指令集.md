@@ -174,4 +174,8 @@ SEXT(src, 32)  // 将低 32 位符号扩展到 64 位，结果类型仍为 uint6
 - 尚未实现的指令：FENCE，ECALL
 - jal 跳转地址未对齐异常尚未处理
 - cpu-test: string, hello-str 本阶段允许暂时FAIL, 其余均符合预期
+- 在`string.c`，`stdio.c` 实现字符串，sprinf()等函数后， cpu-test:string , hello-str 均PASS
+- risc-tests: `make -C riscv-tests ARCH=riscv32-nemu run`  ALL PASS
+
+
 

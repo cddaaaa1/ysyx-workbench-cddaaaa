@@ -21,7 +21,7 @@
 
 # 外部仓库：ysyxSoC / am-kernels / archbench / fceux-am / abstract-machine 已注册为 submodule
 /riscv-tests
-
+/riscv-arch-test
 # Generated build directories (keep source and configuration in Git).
 **/build/
 **/obj_dir/

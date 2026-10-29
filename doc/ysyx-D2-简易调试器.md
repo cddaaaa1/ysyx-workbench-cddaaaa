@@ -54,7 +54,7 @@ main() -> init_monitor() 初始化 NEMU 的运行环境 -> engine_start() 进入
 
 **`engine_start`**: 
 - 启用 `CONFIG_TARGET_AM`：直接调用 `cpu_exec(-1)`
-- 启用 `CONFIG_TARGET_AM`： 进入简易调试器， `sdb_mainloop()`
+- 不启用 `CONFIG_TARGET_AM`： 进入简易调试器， `sdb_mainloop()`
 - `is_exit_status_bas`决定程序退出码
 
 #### 简易调试器（sdb）

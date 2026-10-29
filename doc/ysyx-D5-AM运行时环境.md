@@ -265,3 +265,344 @@ void halt(int code) {
 结束码写入a0 -> 执行ebreak -> NEMU 执行ebreak, 读取a0 -> 设置NEMU_END, 根据结束码报告GOODTRAP/BADTRAP
 
 
+### 通过批处理模式运行NEMU
+
+```bash
+cd nemu/
+make ISA=riscv32 run ARGS="-b" IMG=../am-kernels/tests/cpu-tests/build/dummy-riscv32-nemu.bin
+```
+
+**-b参数传递**
+
+Make 中设置 ARGS=-b → 将 -b 拼入 NEMU 启动命令 → NEMU 的 main() 通过 argv 接收参数 → parse_args() 识别 -b，调用 sdb_set_batch_mode() 设置批处理标志 → sdb_mainloop() 检查该标志，自动调用 cmd_c(NULL) 运行客户程序。
+
+### 实现字符串处理函数 `string.c`
+
+**strcmp**W
+按照字典序，逐个比较两个以 `\0` 结尾的字符串。返回值只要求能表示小于、等于或大于零，不要求一定是 -1、0、1。
+
+```c
+int strcmp(const char *s1, const char *s2) {
+  while (*s1 && *s2) { // 两个字符都不是 '\0'，继续比较
+    if (*s1 != *s2)
+      return (unsigned char)*s1 - (unsigned char)*s2; // 首次不同处决定结果
+    s1 ++;
+    s2 ++;
+  }
+  return (unsigned char)*s1 - (unsigned char)*s2; // 处理相等或一个字符串是另一个的前缀
+}
+```
+
+**strcat**
+从 `dst` 字符串末尾的 `\0` 处开始追加 `src`，覆盖原来的结束符，再写入新的结束符。目标空间需要足够大，且源、目标区域不能重叠。
+
+```c
+char *strcat(char *dst, const char *src) {
+  char *ret = dst; // 保存目标字符串起始地址
+  while (*dst) dst ++; // 找到目标字符串的 '\0'
+  while (*src != '\0') {
+    *dst = *src;
+    dst ++;
+    src ++;
+  }
+  *dst = '\0';
+  return ret; // 返回原始目标地址
+}
+```
+
+**strcpy**
+将 `src` 指向的 C 字符串复制到 `dst`，包括结尾的 `\0`。目标空间需要足够大，且源、目标区域不能重叠。
+
+```c
+char *strcpy(char *dst, const char *src) {
+  char *ret = dst; // 保存目标起始地址
+  while (*src != '\0') {
+    *dst = *src;
+    dst ++;
+    src ++;
+  }
+  *dst = '\0'; // 复制字符串结束符
+  return ret;
+}
+```
+
+**strncpy**
+最多复制 `n` 个字符。若在复制满 `n` 个字符前遇到 `\0`，会继续将目标剩余位置补为 `\0`；若前 `n` 个源字符中没有 `\0`，目标不会自动追加结束符。
+
+```c
+char *strncpy(char *dst, const char *src, size_t n) {
+  char *ret = dst;
+  for (; n > 0; n --) {
+    if (*src != '\0') {
+      *dst = *src;
+      dst ++;
+      src ++;
+    } else {
+      *dst = '\0'; // 源结束后，将目标剩余位置补零
+      dst ++;
+    }
+  }
+  return ret;
+}
+```
+
+**strlen**
+统计字符串中 `\0` 之前的字符数量，不把结束符计入长度。
+
+```c
+size_t strlen(const char *s) {
+  size_t n = 0;
+  while (*s) {
+    n ++;
+    s ++;
+  }
+  return n;
+}
+```
+
+**strncmp**
+最多比较前 `n` 个字符；遇到首个不同字符时返回它们的无符号字符值之差，遇到共同的 `\0` 或比较满 `n` 个字符则返回 `0`。因此 `n == 0` 时不读取字符串。
+
+```c
+int strncmp(const char *s1, const char *s2, size_t n) {
+  for (; n > 0; n --) {
+    if (*s1 != *s2) {
+      return (unsigned char)*s1 - (unsigned char)*s2;
+    }
+    if (*s1 == '\0') {
+      return 0; // 两个字符串在当前位置同时结束
+    }
+    s1 ++;
+    s2 ++;
+  }
+  return 0; // 前 n 个字符相同
+}
+```
+
+**strchr**
+从头查找字符 `c` 第一次出现的位置；字符串结尾的 `\0` 也参与查找。找到时返回该位置的指针，未找到时返回 `NULL`。
+
+```c
+char *strchr(const char *s, int c) {
+  do {
+    if (*s == c) return (char *)s;
+    if (*s == '\0') break;
+    s ++;
+  } while (1);
+  return NULL;
+}
+```
+
+注意：当前实现直接比较 `*s == c`，还没有先将 `c` 转换为 `char`；搜索高位字节或转换后为 `\0` 的参数时，结果可能不符合接口预期。
+
+**strrchr**
+查找字符 `c` 最后一次出现的位置，也会检查字符串结尾的 `\0`。当前实现先用 `strlen` 找到结束符，再从末尾向前查找。
+
+```c
+char *strrchr(const char *s, int c) {
+  const char *p = s + strlen(s); // 指向结尾的 '\0'
+  do {
+    if (*p == c) return (char *)p;
+    if (s == p) break; // 已经检查首字符
+    p --;
+  } while (1);
+  return NULL;
+}
+```
+
+它与 `strchr` 一样，当前尚未先将 `c` 转换为 `char`。
+
+**memset**
+从 `s` 开始，将连续 `n` 个字节设置为 `c` 转换成 `unsigned char` 后的值，并返回原始地址 `s`。
+
+```c
+void *memset(void *s, int c, size_t n) {
+  void *ret = s; // 保存返回地址
+  for (; n > 0; n --) {
+    *(unsigned char *)s = c; // 写入一个字节
+    s = (unsigned char *)s + 1; // 移动一个字节
+  }
+  return ret;
+}
+```
+
+**memcpy**
+从 `in` 复制 `n` 个字节到 `out`，包括值为零的字节；返回原始目标地址。源、目标区域不能重叠。
+
+```c
+void *memcpy(void *out, const void *in, size_t n) {
+  unsigned char *dst = out;
+  const unsigned char *src = in; // 按字节访问，且不修改源数据
+  for (; n > 0; n --) {
+    *dst = *src;
+    dst ++;
+    src ++;
+  }
+  return out;
+}
+```
+
+**memcmp**
+按无符号字节值，比较两块内存区域的前 `n` 个字节，不受 `\0` 结束符影响。返回值的正负表示首个不同字节的大小关系；前 `n` 个字节都相同则返回 `0`。
+
+```c
+int memcmp(const void *s1, const void *s2, size_t n) {
+  const unsigned char *p1 = s1;
+  const unsigned char *p2 = s2; // void * 不能直接解引用或做指针加法
+  for (; n > 0; n --) {
+    if (*p1 != *p2) return *p1 - *p2;
+    p1 ++;
+    p2 ++;
+  }
+  return 0;
+}
+```
+
+**memmove**
+从 `src` 复制 `n` 个字节到 `dst`，即使两块区域重叠也保证结果正确，并返回原始目标地址。目标地址高于源地址时倒序复制，其他情况正序复制。
+
+重叠的例子：
+
+```c
+char buf[] = "abcde";
+memmove(buf + 1, buf, 4);
+```
+
+```text
+下标：     0   1   2   3   4   5
+原内容：   a   b   c   d   e  '\0'
+源区域：  [a   b   c   d]
+目标区域：    [b   c   d   e]
+结果：     a   a   b   c   d  '\0'
+```
+
+如果使用简单的正序复制，第一次把下标 0 的 `a` 写到下标 1，就会覆盖还没读取的 `b`。`memmove` 因而从后往前复制：先复制下标 3，再依次复制下标 2、1、0。重叠区域上调用 `memcpy` 不符合其接口约定，不能依赖其结果。
+
+```c
+void *memmove(void *dst, const void *src, size_t n) {
+  if (n == 0 || dst == src) return dst;
+
+  const unsigned char *p1 = src;
+  unsigned char *p2 = dst;
+  if ((uintptr_t)dst > (uintptr_t)src) {
+    p1 += n;
+    p2 += n; // 两个指针先到区域末尾之后
+    for (; n > 0; n --) {
+      p1 --;
+      p2 --; // 先退到最后一个有效字节
+      *p2 = *p1;
+    }
+  } else {
+    for (; n > 0; n --) {
+      *p2 = *p1;
+      p1 ++;
+      p2 ++;
+    }
+  }
+  return dst;
+}
+```
+
+
+### 实现 sprintf
+
+根据 `fmt` 和可变参数生成文本，写入 `out`，末尾添加 `\0`，返回字符数（不含结束符）。调用者需要保证目标空间足够。
+
+```c
+char out[64];
+int len = sprintf(out, "name=%s, score=%d", "Tom", 95);
+// out 为 "name=Tom, score=95"，len 为 18
+```
+
+调用关系：`sprintf` 管理可变参数 → `vsprintf` 解析格式 → `itoa` 转换整数。
+
+**sprintf**
+初始化可变参数列表，交给 `vsprintf` 处理，最后结束参数访问。
+
+```c
+int sprintf(char *out, const char *fmt, ...) {
+  va_list ap; // 保存可变参数的读取状态
+  va_start(ap, fmt); // 初始化，准备读取 fmt 后面的参数
+  int len = vsprintf(out, fmt, ap); // 交给 vsprintf 解析格式并写入 out
+  va_end(ap); // 结束可变参数访问
+  return len; // 返回写入的字符数，不含结束符
+}
+```
+
+**vsprintf**
+逐个读取格式字符，处理普通文本、`%d`、`%s` 和 `%%`。`out` 指向下一个写入位置，`len` 记录总字符数。
+
+```c
+int vsprintf(char *out, const char *fmt, va_list ap) {
+  int len = 0; // 累计输出字符数
+  while (*fmt) {
+    char ch = *fmt ++; // 先取当前格式字符，再移动格式指针
+    if (ch != '%') { // 普通字符直接输出
+      *out ++ = ch;
+      len ++;
+      continue; // 回到 while，避免普通字符进入格式转换
+    }
+
+    ch = *fmt ++; // 读取 % 后面的转换字符
+    switch (ch) {
+      case 'd': {
+        int value = va_arg(ap, int); // 取出 %d 对应的整数值
+        int written = itoa(out, value, 10); // 从当前输出位置写入十进制文本，返回其长度
+        out += written; // 移到刚写入的结束符处，供后续内容覆盖
+        len += written; // 累加数字文本长度，负号也计入
+        break;
+      }
+      case 's': {
+        const char *s = va_arg(ap, char *); // 取出 %s 对应的字符串指针
+        while (*s) { // 只复制字符，结束符由函数末尾统一补上
+          *out ++ = *s ++;
+          len ++;
+        }
+        break;
+      }
+      case '%': // %% 输出一个 %，不取可变参数
+        *out ++ = '%';
+        len ++;
+        break;
+      default:
+        panic("Unsupported format specifier"); // 当前只支持 %d、%s、%%
+    }
+  }
+  *out = '\0'; // 为最终结果添加字符串结束符
+  return len; // 不把结束符计入长度
+}
+```
+
+**itoa**
+将整数转换为文本并返回字符数。当前声明在 `klib.h`，实现在 `stdlib.c`；`vsprintf` 为 `%d` 传入 `radix = 10`。
+
+```c
+int itoa(char *str, int value , int radix){
+  char digits[16]; // 暂存逆序数字字符，当前 32 位 int 的十进制转换足够使用
+  int count = 0; // 临时数组中的数字数量
+  int len = 0; // 已写入目标的字符数量
+  unsigned int magnitude = (unsigned int)value; // 后续使用无符号运算处理数值大小
+
+  if (value < 0) {
+    str[len ++] = '-'; // 负数先写入负号
+    magnitude = 0u - magnitude; // 得到数值大小，避免最小负整数直接取负溢出
+  }
+
+  do { // 至少执行一次，保证 0 也能生成字符
+    digits[count ++] = '0' + magnitude % radix; // 取最低位，转成字符后逆序保存
+    magnitude /= radix; // 去掉十进制最低位，当前与 radix = 10 配合
+  } while (magnitude != 0);
+
+  while (count > 0) {
+    str[len ++] = digits[-- count]; // 先减少下标，再倒序取出数字写入目标
+  }
+  str[len] = '\0'; // 添加结束符，后续格式化输出可覆盖它
+  return len; // 返回字符数，包含负号，不含结束符
+}
+```
+
+以 `-120` 为例：先写入 `-`，临时数组依次保存 `0`、`2`、`1`，再倒序写入，得到 `"-120"`，返回长度 `4`。
+
+当前 `itoa` 取余使用 `radix`，但除法固定为 `/ 10`，且尚未处理大于 9 的数字字符，因此这里仅按 `radix = 10` 使用。
+
+
