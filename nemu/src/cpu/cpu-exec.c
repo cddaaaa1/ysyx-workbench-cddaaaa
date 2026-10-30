@@ -16,6 +16,7 @@
 #include <cpu/cpu.h>
 #include <cpu/decode.h>
 #include <cpu/difftest.h>
+#include <cpu/iringbuf.h>
 #include "../monitor/sdb/watchpoint.h"
 #include <locale.h>
 
@@ -48,6 +49,7 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #endif
   if (g_print_step) { IFDEF(CONFIG_ITRACE, puts(_this->logbuf)); }
   IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
+  if (nemu_state.state == NEMU_ABORT) { IFDEF(CONFIG_ITRACE, iringbuf_dump());}
   IFDEF(CONFIG_WATCHPOINT, _check_wp());
 }
 
@@ -79,6 +81,7 @@ static void exec_once(Decode *s, vaddr_t pc) {
   void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
   disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
       MUXDEF(CONFIG_ISA_x86, s->snpc, s->pc), (uint8_t *)&s->isa.inst, ilen);
+  iringbuf_push(s->logbuf);
 #endif
 }
 
@@ -103,6 +106,7 @@ static void statistic() {
 }
 
 void assert_fail_msg() {
+  IFDEF(CONFIG_ITRACE, iringbuf_dump());
   isa_reg_display();
   statistic();
 }
