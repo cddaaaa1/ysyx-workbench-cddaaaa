@@ -18,7 +18,20 @@
 #include "../local-include/reg.h"
 
 bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc) {
-  return false;
+  if (ref_r->pc != cpu.pc) {
+    Log("Difftest: pc is different at pc = " FMT_WORD ", ref.pc = " FMT_WORD ", dut.pc = " FMT_WORD,
+        pc, ref_r->pc, cpu.pc);
+    return false;
+  }
+  size_t gpr_count = sizeof(cpu.gpr) / sizeof(cpu.gpr[0]);
+  for (int i = 0; i < gpr_count; i ++) {
+    if (ref_r->gpr[i] != cpu.gpr[i]) {
+      Log("Difftest: gpr[%d] is different at pc = " FMT_WORD ", ref.gpr[%d] = " FMT_WORD ", dut.gpr[%d] = " FMT_WORD,
+          i, pc, i, ref_r->gpr[i], i, cpu.gpr[i]);
+      return false;
+    }
+  }
+  return true;
 }
 
 void isa_difftest_attach() {
