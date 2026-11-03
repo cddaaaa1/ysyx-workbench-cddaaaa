@@ -36,11 +36,11 @@ static word_t pmem_read(paddr_t addr, int len) {
   return ret;
 }
 
-static void pmem_write(paddr_t addr, int len, word_t data) {
+static void pmem_write(paddr_t addr, int len, word_t data) { 
   host_write(guest_to_host(addr), len, data);
 
 #ifdef CONFIG_MTRACE
-  printf("pc=" FMT_WORD " R addr=" FMT_PADDR " len=%d data=" FMT_WORD "\n", cpu.pc, addr, len, data);
+  printf("pc=" FMT_WORD " W addr=" FMT_PADDR " len=%d data=" FMT_WORD "\n", cpu.pc, addr, len, data);
 #endif
 }
 
