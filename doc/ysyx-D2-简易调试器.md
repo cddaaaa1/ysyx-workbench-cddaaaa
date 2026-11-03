@@ -194,6 +194,9 @@ inst.c 中确认 s->dnpc, 最终由`exec_once()` 执行 `cpu.pc = s->dnpc`
 | s->snpc | 按代码顺序排列的下一条指令地址 | 101 |
 | s->dnpc | 实际下一条要执行的指令地址 | 102 |
 
+#### 内存 `memory/`
+
+
 
 ### PA1 - RTFSC
 
