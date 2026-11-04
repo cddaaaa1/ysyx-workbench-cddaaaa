@@ -269,6 +269,7 @@ hello.o 还没有完成链接, 还需要使用符号表.symtab
 
 **Q:** 阅读相关Makefile, 尝试理解abstract-machine是如何生成native的可执行文件的.
 **A:** 
+```
 cpu-tests/Makefile
  └─ 生成临时 Makefile.string
      ├─ NAME = string
@@ -297,9 +298,10 @@ cpu-tests/Makefile
          │
          └─ run
              └─ Linux 执行 string-native.elf
+```             
 **Ps:** .elf 的全称是 Executable and Linkable Format
 
-### Diff test 
+### Differential Test 
 
 **Q:** 为什么需要difftest 
 **A:** 一条指令执行错误，可能经过很多条指令后才表现为越界或 BAD TRAP。DiffTest 逐条比较，尽早发现状态差异
@@ -390,6 +392,14 @@ tools/difftest.mk
 **ssh密钥与代理**
 之前一直用HTTPS,但`tools/spike-diff/Makefile` 使用SSH下载仓库，为保持原配置配置了密钥和网络代理
 
+
+#### 实现寄存器检查
+
+DUT 和 REF 需要一致的寄存器排列顺序，数量和字段宽度，RV32 的布局是：低地址 → x0 → x1 → x2 → … → x31 → PC → 高地址
+
+实现 isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc): 
+- ref_r->pc != cpu.pc
+- ref_r->gpr[i] != cpu.gpr[i]
 
 
 **Q:** DUT 和 REF 之间需要对齐哪些内容
