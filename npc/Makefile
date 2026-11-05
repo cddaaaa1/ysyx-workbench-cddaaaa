@@ -16,7 +16,7 @@ ELABORATE_TOP := $(SOC_HOME)/ready-to-run/minirv/ElaborateTop.v
 # source
 NPC_VSRCS   := $(wildcard $(VSRC_DIR)/*.v) $(wildcard $(VSRC_DIR)/libs/*.v)
 NPC_SIM_VSRCS := $(VSRC_DIR)/npc_top.v $(VSRC_DIR)/dpic_mem.v
-SOC_VSRCS   := $(shell find $(PERIP_DIR) \( -name "*.v" -o -name "*.sv" \)) $(ELABORATE_TOP)
+SOC_VSRCS   = $(shell find $(PERIP_DIR) \( -name "*.v" -o -name "*.sv" \)) $(ELABORATE_TOP)
 HDRS        := $(wildcard $(VSRC_DIR)/include/*.vh) $(wildcard $(CSRC_DIR)/include/*.h)
 SIM_CSRC    := $(filter-out $(CSRC_DIR)/emu_main.cpp $(CSRC_DIR)/minirvemu.cpp, \
                             $(wildcard $(CSRC_DIR)/*.cpp))

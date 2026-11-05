@@ -1,0 +1,62 @@
+name: NPC CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  cpu-tests:
+    name: Run all NPC CPU tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          submodules: false
+
+      - name: Checkout test dependencies
+        run: git submodule update --init --depth 1 abstract-machine am-kernels
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential verilator python-is-python3
+
+      - name: Install RISC-V toolchain
+        # 与本地 minirv 包装脚本使用的工具链一致，固定版本并校验下载内容。
+        run: |
+          archive=xpack-riscv-none-elf-gcc-15.2.0-1-linux-x64.tar.gz
+          curl --fail --location --retry 3 \
+            "https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack/releases/download/v15.2.0-1/$archive" \
+            --output "$RUNNER_TEMP/$archive"
+          echo "aaaa8060c914851a3e5ee1ba82cc3d6f80972f90638a05c6e823a37557a33758  $RUNNER_TEMP/$archive" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xpack-riscv-none-elf-gcc-15.2.0-1/bin" >> "$GITHUB_PATH"
+
+      - name: Show tool versions
+        run: |
+          verilator --version
+          g++ --version
+          make --version
+          riscv-none-elf-gcc --version
+          python --version
+
+      - name: Run all CPU tests
+        run: bash .github/scripts/cpu-tests.sh
+
+      - name: Upload CPU test logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: npc-cpu-test-logs
+          path: build/cpu-tests/
+          if-no-files-found: ignore
+          retention-days: 14
