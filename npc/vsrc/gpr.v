@@ -1,4 +1,4 @@
-module ysyx_22040000_gpr #(ADDR_WIDTH = 5, DATA_WIDTH = 32) (
+module ysyx_26100296_gpr #(ADDR_WIDTH = 5, DATA_WIDTH = 32) (
   input clk,
   input [DATA_WIDTH-1:0] wdata,
   input [ADDR_WIDTH-1:0] waddr,

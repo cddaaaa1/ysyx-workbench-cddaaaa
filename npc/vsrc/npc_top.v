@@ -19,7 +19,7 @@ module npc_top (
 `endif
 
 
-ysyx_22040000 npc (
+ysyx_26100296 npc (
     .clock(clock), 
     .reset(reset), 
     .io_ifu_addr(io_ifu_addr),

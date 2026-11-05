@@ -19,18 +19,42 @@
 `define LSU_SB  3'd4
 
 // ---- opcode ----
-`define OP_OPIMM 7'b0010011
-`define OP_JALR  7'b1100111
-`define OP_R     7'b0110011
-`define OP_LUI    7'b0110111
-`define OP_SYSTEM 7'b1110011
-`define OP_LOAD   7'b0000011
-`define OP_STORE  7'b0100011
+// `define OP_OPIMM 7'b0010011
+// `define OP_JALR  7'b1100111
+// `define OP_R     7'b0110011
+// `define OP_LUI    7'b0110111
+// `define OP_SYSTEM 7'b1110011
+// `define OP_LOAD   7'b0000011
+// `define OP_STORE  7'b0100011
+
+`define OP_TYPE_R          7'b0110011  //R type
+`define OP_TYPE_S          7'b0100011  //S type
+`define OP_TYPE_B          7'b1100011  //B type
+`define OP_TYPE_I          7'b0010011  //I type for addi/slli/srli/srai/xori/ori/andi
+`define OP_TYPE_I_LOAD     7'b0000011  //I type for lb/lh/lw/lbu/lhu
+`define OP_TYPE_I_JALR     7'b1100111  //I type for jalr
+`define OP_TYPE_I_EBRK     7'b1110011  //I type for ecall/ebreak
+`define OP_TYPE_U_LUI      7'b0110111  //U type for lui
+`define OP_TYPE_U_AUIPC    7'b0010111  //U type for auipc
+`define OP_TYPE_J          7'b1101111  //J type for jal
+// `define OP_TYPE_SYS        7'b1110011  //SYS type for ecall/ebreak/csrrw/csrrs/csrrc
+// `define OP_TYPE_FENCE      7'b0001111  //FENCE type for fence.i
+
 // ---- FUNCT3 
+`define FUNC3_ADD_SUB           3'b000        //ADDI ADD SUB
+`define FUNC3_SLL               3'b001        //SLL SLLI
+`define FUNC3_SLT               3'b010        //SLT SLTI
+`define FUNC3_SLTU              3'b011        //STLU STLIU
+`define FUNC3_XOR               3'b100        //XOR XORI
+`define FUNC3_SRL_SRA           3'b101        //SRL SRLI SRA SRAI
+`define FUNC3_OR                3'b110        //OR ORI
+`define FUNC3_AND               3'b111        //AND ANDI
+
 `define FUNCT3_LW  3'b010
 `define FUNCT3_LBU 3'b100
 `define FUNCT3_SW  3'b010
 `define FUNCT3_SB  3'b000
+
 `define FUNCT3_CSRRS 3'b010
 
 `define INST_EBREAK 32'h00100073

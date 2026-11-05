@@ -27,7 +27,7 @@ module sim_top (
     wire        lsu_respValid;
 
     // CPU 顶层端口严格按 cpu-interface.md 命名, 这里一一对应地连出来
-    ysyx_22040000 u_cpu (
+    ysyx_26100296 u_cpu (
         .clock(clk), 
         .reset(rst), 
         .io_ifu_addr(ifu_addr), 

@@ -1,5 +1,5 @@
 `include "define.vh"
-module ysyx_22040000_csr(
+module ysyx_26100296_csr(
 	input         clk,
 	input         rst,
 	input  [11:0] addr,

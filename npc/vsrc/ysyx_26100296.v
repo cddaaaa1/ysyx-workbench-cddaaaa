@@ -1,5 +1,5 @@
 `include "define.vh"
-module ysyx_22040000(
+module ysyx_26100296(
 	input  clock,
 	input  reset
     ,output        io_ifu_reqValid
@@ -75,7 +75,7 @@ module ysyx_22040000(
 		else       misalign <= lsu_misalign;
 	end
 
-	ysyx_22040000_pc_reg u_pc_reg(
+	ysyx_26100296_pc_reg u_pc_reg(
 		.clk(clock),
 		.rst(reset),
 		.we(pc_we),
@@ -83,7 +83,7 @@ module ysyx_22040000(
 		.pc(pc)
 	);
 
-	ysyx_22040000_ifu u_ifu(
+	ysyx_26100296_ifu u_ifu(
 		.clk(clock),
 		.rst(reset),
 		.pc(pc),
@@ -96,22 +96,22 @@ module ysyx_22040000(
 		.ifu_rdata(io_ifu_rdata)
 	);
 
-	ysyx_22040000_idu u_idu(
+	ysyx_26100296_idu u_idu(
 		.inst(inst),
-		.raddr1(raddr1),
-		.raddr2(raddr2),
-		.waddr(waddr),
-		.gpr_we(gpr_we),
-		.wb_sel(wb_sel),
-		.imm(imm),
-		.alu_op(alu_op),
-		.is_jalr(is_jalr),
-		.lsu_op(lsu_op),
-		.is_ebreak(is_ebreak),
-		.csr_addr(csr_addr)
+		.rs1_o(raddr1),
+		.rs2_o(raddr2),
+		.rd_o(waddr),
+		.gpr_we_o(gpr_we),
+		.wb_sel_o(wb_sel),
+		.imm_o(imm),
+		.alu_op_o(alu_op),
+		.is_jalr_o(is_jalr),
+		.lsu_op_o(lsu_op),
+		.is_ebreak_o(is_ebreak),
+		.csr_addr_o(csr_addr)
 	);
 
-	ysyx_22040000_gpr u_gpr(
+	ysyx_26100296_gpr u_gpr(
 		.clk(clock),
 		.wdata(wb_data),
 		.waddr(waddr),
@@ -122,7 +122,7 @@ module ysyx_22040000(
 		.rdata2(rdata2)
 	);
 
-	ysyx_22040000_exu u_exu(
+	ysyx_26100296_exu u_exu(
 		.rdata1(rdata1),
 		.rdata2(rdata2),
 		.imm(imm),
@@ -133,14 +133,14 @@ module ysyx_22040000(
 		.jump_target(jump_target)
 	);
 
-	ysyx_22040000_csr u_csr(
+	ysyx_26100296_csr u_csr(
 		.clk(clock),
 		.rst(reset),
 		.addr(csr_addr),
 		.rdata(csr_rdata)
 	);
 
-	ysyx_22040000_lsu u_lsu(
+	ysyx_26100296_lsu u_lsu(
 		.clk(clock),
 		.rst(reset),
 		.valid(ifu_valid),
@@ -160,7 +160,7 @@ module ysyx_22040000(
 		.lsu_respValid(io_lsu_respValid)
 	);
 
-	ysyx_22040000_wbu u_wbu(
+	ysyx_26100296_wbu u_wbu(
 		.pc(pc),
 		.wb_sel(wb_sel),
 		.alu_result(alu_result),

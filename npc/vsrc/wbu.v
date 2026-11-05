@@ -1,5 +1,5 @@
 `include "define.vh"
-module ysyx_22040000_wbu(
+module ysyx_26100296_wbu(
         input  [31:0] pc,          
         input  [1:0]  wb_sel,     
         input  [31:0] alu_result,  

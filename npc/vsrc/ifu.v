@@ -1,5 +1,5 @@
 `include "define.vh"
-module ysyx_22040000_ifu(
+module ysyx_26100296_ifu(
         input  clk,
         input  rst,
         input  [31:0] pc,         // 来自 pc_reg: 当前 PC

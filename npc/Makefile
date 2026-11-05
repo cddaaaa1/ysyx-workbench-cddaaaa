@@ -117,7 +117,7 @@ wave:
 
 lint:
 	$(VERILATOR) --lint-only -Wall -Wno-DECLFILENAME $(INC_FLAGS) $(VDEFINES) \
-		--top-module ysyx_22040000 $(NPC_VSRCS)
+		--top-module ysyx_26100296 $(NPC_VSRCS)
 
 # ---- iverilog 流程: 编出 .vpi 插件, 再让 vvp 在运行期加载 ----
 OSS_INC ?= $(abspath $(dir $(shell which $(IVERILOG)))/../include/iverilog)

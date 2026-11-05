@@ -1,5 +1,5 @@
 `include "define.vh"
-module ysyx_22040000_pc_reg (
+module ysyx_26100296_pc_reg (
 	input        clk,
 	input        rst,
 	input        we,
