@@ -37,8 +37,8 @@
 `define OP_TYPE_U_LUI      7'b0110111  //U type for lui
 `define OP_TYPE_U_AUIPC    7'b0010111  //U type for auipc
 `define OP_TYPE_J          7'b1101111  //J type for jal
-// `define OP_TYPE_SYS        7'b1110011  //SYS type for ecall/ebreak/csrrw/csrrs/csrrc
-// `define OP_TYPE_FENCE      7'b0001111  //FENCE type for fence.i
+`define OP_TYPE_SYS        7'b1110011  //SYS type for ecall/ebreak/csrrw/csrrs/csrrc
+`define OP_TYPE_FENCE      7'b0001111  //FENCE type for fence.i
 
 // ---- FUNCT3 
 `define FUNC3_ADD_SUB           3'b000        //ADDI ADD SUB
