@@ -18,8 +18,10 @@ NPC_VSRCS   := $(wildcard $(VSRC_DIR)/*.v) $(wildcard $(VSRC_DIR)/libs/*.v)
 NPC_SIM_VSRCS := $(VSRC_DIR)/npc_top.v $(VSRC_DIR)/dpic_mem.v
 SOC_VSRCS   = $(shell find $(PERIP_DIR) \( -name "*.v" -o -name "*.sv" \)) $(ELABORATE_TOP)
 HDRS        := $(wildcard $(VSRC_DIR)/include/*.vh) $(wildcard $(CSRC_DIR)/include/*.h)
-SIM_CSRC    := $(filter-out $(CSRC_DIR)/emu_main.cpp $(CSRC_DIR)/minirvemu.cpp, \
-                            $(wildcard $(CSRC_DIR)/*.cpp))
+SIM_CSRC    := $(wildcard $(CSRC_DIR)/*.cpp) $(wildcard $(CSRC_DIR)/monitor/*.cpp) $(wildcard $(CSRC_DIR)/monitor/sdb/*.cpp)
+HDRS += $(wildcard $(CSRC_DIR)/monitor/*.h) $(wildcard $(CSRC_DIR)/monitor/sdb/*.h)
+LDFLAGS += -lreadline
+NPC_ARGS ?= -b 
 CDEFINES += -DTOP_NAME=V$(TOPNAME) 
 
 ifeq ($(ARCH),minirv-npc)
@@ -100,16 +102,16 @@ $(SIM_BIN): $(SIM_VSRCS) $(SIM_CSRC) $(HDRS) $(NVBOARD_ARCHIVE) $(NPC_HOME)/Make
 	@rm -rf $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_CFLAGS) --Mdir $(OBJ_DIR) -o $(abspath $(SIM_BIN)) \
 		$(SIM_VSRCS) $(SIM_CSRC) $(NVBOARD_ARCHIVE) \
-		-CFLAGS "-I$(NPC_HOME) $(NVBOARD_CFLAGS) $(CDEFINES) $(CXXFLAGS)" \
+		-CFLAGS "-I$(NPC_HOME) -I$(CSRC_DIR) $(NVBOARD_CFLAGS) $(CDEFINES) $(CXXFLAGS)" \
 		$(if $(strip $(LDFLAGS)),-LDFLAGS "$(LDFLAGS)")
 
 sim-run: $(SIM_BIN)
 	@echo "ARCH=$(ARCH) TOP=$(TOPNAME) IMG=$(IMG)"
-	@$(SIM_BIN) $(IMG)
+	@$(SIM_BIN) $(NPC_ARGS) $(IMG)
 
 sim-wave:
 	@$(MAKE) -s sim WAVE=1
-	@$(SIM_BIN) $(IMG)
+	@$(SIM_BIN) $(NPC_ARGS) $(IMG)
 endif
 
 wave:
@@ -175,7 +177,7 @@ netlist: $(NETLIST)
 
 netlist-verilator: $(NET_BIN)
 	@echo "NETLIST IMG=$(NET_IMG)"
-	$(NET_BIN) $(NET_IMG)
+	$(NET_BIN) $(NPC_ARGS) $(NET_IMG)
 
 $(NET_BIN): $(NET_VSRCS) $(NET_CSRC) $(HDRS) $(NPC_HOME)/Makefile
 	@mkdir -p $(BUILD_DIR)
@@ -188,7 +190,7 @@ $(NET_BIN): $(NET_VSRCS) $(NET_CSRC) $(HDRS) $(NPC_HOME)/Makefile
 		-I$(VSRC_DIR)/include \
 		--Mdir $(NET_OBJ_DIR) -o $(abspath $@) \
 		$(NET_VSRCS) $(NET_CSRC) \
-		-CFLAGS "-I$(NPC_HOME) $(NET_CDEFINES)"
+		-CFLAGS "-I$(NPC_HOME) -I$(CSRC_DIR) $(NET_CDEFINES)" -LDFLAGS "$(LDFLAGS)"
 
 netlist-iverilog: $(VPI_SO) $(NET_IV_VVP)
 	@echo "NETLIST IMG=$(NET_IMG)"

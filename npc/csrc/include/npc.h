@@ -1,30 +1,12 @@
 #ifndef NPC_H
 #define NPC_H
 
-#include <stdint.h>
-#ifdef YSYXSOC
-#include <VSimTop.h>
-using TOP = VSimTop;
-#else
-#include <Vnpc_top.h>
-using TOP = Vnpc_top;
-#endif
-#ifdef NVBOARD
-#include <nvboard.h>
-#endif
-
+#include "utils.h"
 #include "macro.h"
 #include "pmem.h"
 
-struct SimState {
-	unsigned long long cycle = 0;      // 当前周期数, RTC 用
-	bool               retired = false; // 本拍提交了指令
-	uint32_t           retire_pc = 0;
+#include "sim.h"
 
-	bool halted = false;
-	uint32_t halt_code = 1;
-};
-
-extern SimState sim;
-
+void npc_exec(uint64_t n);
+void npc_statistics();
 #endif
