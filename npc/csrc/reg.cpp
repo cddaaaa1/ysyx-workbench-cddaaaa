@@ -3,6 +3,8 @@
 #include "include/reg.h"
 #include "include/sim.h"
 
+CPUState cpu_state{};
+
 static const char *const reg_names[] = {
   "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
   "s0", "s1", "a0", "a1", "a2", "a3", "a4", "a5",

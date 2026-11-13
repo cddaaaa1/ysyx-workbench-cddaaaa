@@ -28,3 +28,5 @@
 **/build/
 **/obj_dir/
 
+# Local notes
+/doc/tmp/

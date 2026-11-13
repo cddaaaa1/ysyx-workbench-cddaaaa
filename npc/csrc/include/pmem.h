@@ -15,6 +15,8 @@ extern "C" {
 extern uint8_t pmem[PMEM_SIZE];
 extern uint8_t flash[FLASH_SIZE];
 
+uint8_t* guest_to_host(uint32_t paddr);
+
 int  pmem_load(const char *path);
 void flash_load(const char *path);
 
@@ -26,4 +28,4 @@ void flash_read(int32_t raddr, int32_t *data);
 }
 #endif
 
-#endif 
+#endif

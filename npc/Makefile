@@ -41,21 +41,21 @@ else ifeq ($(ARCH),minirv-ysyxsoc)
   IMG       ?= $(SOC_HOME)/ready-to-run/minirv/hello-minirv-ysyxsoc.bin
   BOARD     ?= 1                                 
 else
-  $(error ARCH 只支持 minirv-npc / minirv-ysyxsoc, 当前是 "$(ARCH)")
+  $(error ARCH must be minirv-npc or minirv-ysyxsoc; got "$(ARCH)")
 endif
 
 ifeq ($(SIM),iverilog)
   TOPNAME   := iverilog_top
   SIM_VSRCS += $(NPC_HOME)/iverilog_top.v
 else ifneq ($(SIM),verilator)
-  $(error SIM 只支持 verilator / iverilog, 当前是 "$(SIM)")
+  $(error SIM must be verilator or iverilog; got "$(SIM)")
 endif
 
 SIM_BIN := $(BUILD_DIR)/sim-$(TOPNAME)
 
 ifneq ($(BOARD),)
 ifeq ($(NVBOARD_HOME),)
-$(error NVBOARD_HOME 未设置: 先 `source ~/.bashrc` 或 export NVBOARD_HOME=...)
+$(error NVBOARD_HOME is not set: run `source ~/.bashrc` or export NVBOARD_HOME=...)
 endif
 NXDC_FILES    := $(NPC_HOME)/constr/top.nxdc
 SRC_AUTO_BIND := $(BUILD_DIR)/auto_bind.cpp
@@ -79,6 +79,12 @@ VERILATOR_CFLAGS  += $(INC_FLAGS) $(VDEFINES)
 
 ifneq ($(WAVE),)
 CDEFINES += -DTRACE_ON
+endif
+
+ifeq ($(DIFFTEST),1)
+CDEFINES += -DDIFFTEST
+SIM_CSRC += $(CSRC_DIR)/difftest/dut.cpp
+LDFLAGS += -ldl
 endif
 
 ifneq ($(MAXCYCLE), )
@@ -121,7 +127,7 @@ lint:
 	$(VERILATOR) --lint-only -Wall -Wno-DECLFILENAME $(INC_FLAGS) $(VDEFINES) \
 		--top-module ysyx_26100296 $(NPC_VSRCS)
 
-# ---- iverilog 流程: 编出 .vpi 插件, 再让 vvp 在运行期加载 ----
+# ---- Icarus Verilog: build a .vpi plugin for vvp to load at runtime ----
 OSS_INC ?= $(abspath $(dir $(shell which $(IVERILOG)))/../include/iverilog)
 IV_DIR  := $(BUILD_DIR)
 VPI_SO  := $(IV_DIR)/vpi.vpi
@@ -148,7 +154,7 @@ iv-run: iv
 	@echo "ARCH=$(ARCH) IMG=$(IMG)"
 	vvp -M$(IV_DIR) -m vpi $(IV_VVP) +img=$(IMG)
 
-# ---- 网表仿真 (E8): 用综合网表替换 RTL 模块, 存储器仍由 npc_top 例化 ----
+# ---- Netlist simulation (E8): replace RTL with a synthesized netlist; npc_top still instantiates memory ----
 OSS_BIN     := $(patsubst %/,%,$(dir $(shell which $(IVERILOG))))
 NET_VERILATOR ?= $(OSS_BIN)/verilator
 PDK_HOME   ?= $(HOME)/.local/opt/icsprout55-pdk
@@ -163,6 +169,7 @@ NET_IMG    ?= $(abspath $(NPC_HOME)/../am-kernels/tests/cpu-tests/build/dummy-mi
 NET_OBJ_DIR := $(BUILD_DIR)/obj_netlist
 NET_BIN     := $(BUILD_DIR)/sim-netlist
 NET_CDEFINES := -DNETLIST_SIM $(if $(WAVE),-DTRACE_ON,) \
+                $(if $(filter 1,$(DIFFTEST)),-DDIFFTEST,) \
                 $(if $(MAXCYCLE),-DDEBUG_TIME -DMAX_CYCLE=$(MAXCYCLE),)
 NET_IV_VVP  := $(BUILD_DIR)/sim-net-iv.vvp
 

@@ -1,4 +1,7 @@
 #include "include/npc.h"
+#ifdef DIFFTEST
+#include "include/difftest.h"
+#endif
 #include <stdio.h>
 #include <inttypes.h>
 
@@ -35,6 +38,11 @@ static void execute(uint64_t n) {
     if (exec_once()) {
       ++total_instructions;
       --n;
+#ifdef DIFFTEST
+      uint32_t npc;
+      sim_read_pc(npc);
+      difftest_step(npc_state.retire_pc, npc);
+#endif
     }
   }
 }

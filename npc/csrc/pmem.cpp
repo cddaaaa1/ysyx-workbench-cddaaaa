@@ -18,6 +18,10 @@ static uint8_t g_uart_lc = 0;
 uint8_t pmem[PMEM_SIZE];
 uint8_t flash[FLASH_SIZE];
 
+uint8_t* guest_to_host(uint32_t paddr) {
+	return pmem + (paddr - PMEM_BASE);
+}
+
 int pmem_load(const char *path)
 {
 	FILE *fp = fopen(path, "rb");
