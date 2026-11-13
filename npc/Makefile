@@ -85,6 +85,7 @@ ifeq ($(DIFFTEST),1)
 CDEFINES += -DDIFFTEST
 SIM_CSRC += $(CSRC_DIR)/difftest/dut.cpp
 LDFLAGS += -ldl
+NPC_ARGS += --diff=../nemu/build/riscv32-nemu-interpreter-so
 endif
 
 ifneq ($(MAXCYCLE), )
@@ -217,6 +218,3 @@ clean:
 
 .PHONY: default sim sim-run run sim-wave wave lint iv iv-run netlist netlist-syn \
         netlist-verilator netlist-iverilog sim-clean clean
-
-
-

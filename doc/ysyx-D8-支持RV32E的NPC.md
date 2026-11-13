@@ -29,7 +29,6 @@ main()
 
 **对比NEMU和NPC**
 
-
 | 对比 | NEMU | NPC |
 |---|---|---|
 | 指令语义 | C 代码完成译码、计算和状态更新 | RTL 电路完成 |
@@ -37,6 +36,9 @@ main()
 | 一步的完成条件 | exec_once() 完成解释执行 | 观察到指令提交 |
 | GPR、PC 的存放位置 | CPU_state cpu | RTL 寄存器 |
 | 调试信息来源 | 软件直接取得 | 通过 DPI 等接口从 RTL 导出 |
+
+**Q:** NEMU 和 NPC 中 exec_once()的不同语义
+**A:** NEMU 中表示执行一条指令，而NPC中表示推进周期直到提交一条指令
 
 #### NPC实现单步执行
 - 验收：
@@ -60,7 +62,6 @@ static const auto &gpr_file() {
   return top->rootp->npc_top__DOT__npc__DOT__u_gpr__DOT__rf;
 }
 ```
-
 
 ### 为NPC添加DiffTest支持
 
@@ -169,12 +170,19 @@ void difftest_step(vaddr_t pc, vaddr_t npc) {
 **测试**
 - 在RTL中注入错误, 立即数生成大1，difftest 成功捕捉错误
 
-- `make run ARCH=minirv-npc DIFFTEST=1 NPC_ARGS="-b --diff=../nemu/build/riscv32-nemu-interpreter-so"` 开启difftest,cpu-test符合预期
+- `make -C am-kernels/tests/cpu-tests ARCH=minirv-npc run DIFFTEST=0` 开启difftest,cpu-test符合预期
 
-- `make -C am-kernels/tests/cpu-tests run  ARCH=minirv-npc DIFFTEST=0 NPC_ARGS="-b"` 关闭difftest 
+**问题** 切换 DIFFTEST=0/1 后，Make 未感知命令行配置变化，继续复用旧仿真程序，导致编译宏与运行参数不一致并触发 DiffTest 断言
+**解决** 临时解决方案时执行`make clean`; 后续改进是增加stamp文件记录上一次的配置，并将其作为仿真程序的依赖
+  
+
+### 为NPC添加config功能 
+搁置
+
+### 为NPC添加trace
 
 
-### 为NPC添加config 
+### 为NPC添加表达式求值，监视点
 
 
 ##### TODO:
@@ -183,5 +191,3 @@ void difftest_step(vaddr_t pc, vaddr_t npc) {
 3. 统一函数声明方式，头文件还是直接放在需要使用的文件
 4. makefile 流程
 5. 给NPC添加config
-
-

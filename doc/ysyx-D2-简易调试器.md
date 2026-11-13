@@ -197,6 +197,18 @@ inst.c 中确认 s->dnpc, 最终由`exec_once()` 执行 `cpu.pc = s->dnpc`
 #### 内存 `memory/`
 
 
+#### 配置系统Kconfig 
+Kconfig 中定义 CONFIG_DIFFTEST
+        ↓
+menuconfig / defconfig 修改 .config
+        ↓
+conf --syncconfig
+        ↓
+生成 auto.conf 和 autoconf.h
+        ↓
+Make 读取 CONFIG_DIFFTEST
+C/C++ 读取 CONFIG_DIFFTEST 宏
+
 
 ### PA1 - RTFSC
 
