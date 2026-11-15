@@ -174,7 +174,7 @@ void difftest_step(vaddr_t pc, vaddr_t npc) {
 - `make -C am-kernels/tests/cpu-tests ARCH=minirv-npc run DIFFTEST=0` 开启difftest,cpu-test符合预期
 
 **问题** 切换 DIFFTEST=0/1 后，Make 未感知命令行配置变化，继续复用旧仿真程序，导致编译宏与运行参数不一致并触发 DiffTest 断言
-**解决** 临时解决方案时执行`make clean`; 后续改进是增加stamp文件记录上一次的配置，并将其作为仿真程序的依赖
+**解决** 添加config.mk 作为make sim 依赖， 后续改进是增加stamp文件记录上一次实际使用的配置，这样可以同时使用命令行和config.mk配置
 
 ### 为NPC添加trace
 
@@ -195,9 +195,7 @@ if (npc_state.state == NPC_ABORT) iringbuf_dump();
 // NPC 特别要要将dump 放到if（exec_once()）外, exec_once可能在没有新提交是因周期上线返回false, iringbuf 需要捕捉这种情况 
 
 ```
-  
 
-### 为NPC添加config功能 
 
 ### 优化npc功能参数和重编译
 

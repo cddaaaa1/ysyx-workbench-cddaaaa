@@ -6,6 +6,7 @@ SIM  ?= verilator
 ARCH ?= minirv-ysyxsoc
 
 NPC_HOME  := $(CURDIR)
+-include $(NPC_HOME)/config.mk
 SOC_HOME  ?= $(abspath $(NPC_HOME)/../ysyxSoC)
 VSRC_DIR  := $(NPC_HOME)/vsrc
 CSRC_DIR  := $(NPC_HOME)/csrc
@@ -23,7 +24,7 @@ HDRS        := $(wildcard $(VSRC_DIR)/include/*.vh) $(wildcard $(CSRC_DIR)/inclu
 SIM_CSRC    := $(wildcard $(CSRC_DIR)/*.cpp) $(wildcard $(CSRC_DIR)/monitor/*.cpp) $(wildcard $(CSRC_DIR)/monitor/sdb/*.cpp)
 HDRS += $(wildcard $(CSRC_DIR)/monitor/*.h) $(wildcard $(CSRC_DIR)/monitor/sdb/*.h)
 LDFLAGS += -lreadline
-NPC_ARGS ?= -b 
+NPC_ARGS ?= -b  --log=$(BUILD_DIR)/npc-log.txt
 CDEFINES += -DTOP_NAME=V$(TOPNAME) 
 
 ifeq ($(ARCH),minirv-npc)
@@ -55,7 +56,7 @@ endif
 
 SIM_BIN := $(BUILD_DIR)/sim-$(TOPNAME)
 
-ifneq ($(BOARD),)
+ifeq ($(BOARD),1)
 ifeq ($(NVBOARD_HOME),)
 $(error NVBOARD_HOME is not set: run `source ~/.bashrc` or export NVBOARD_HOME=...)
 endif
@@ -119,7 +120,7 @@ run:     sim-run
 
 sim: $(SIM_BIN)
 
-$(SIM_BIN): $(SIM_VSRCS) $(SIM_CSRC) $(HDRS) $(NVBOARD_ARCHIVE) $(NPC_HOME)/Makefile
+$(SIM_BIN): $(SIM_VSRCS) $(SIM_CSRC) $(HDRS) $(NVBOARD_ARCHIVE) $(NPC_HOME)/Makefile $(NPC_HOME)/config.mk 
 	@mkdir -p $(BUILD_DIR)
 	@rm -rf $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_CFLAGS) --Mdir $(OBJ_DIR) -o $(abspath $(SIM_BIN)) \
