@@ -158,6 +158,7 @@ void difftest_step(vaddr_t pc, vaddr_t npc) {
   checkregs(&ref_r, pc);
 }
 ```
+
 **问题**：跑dummy 镜像时访存越界报错
 **解决**：
 1. 注释 difftest_step() 后能运行， 说明问题出现在REF部分
@@ -174,12 +175,36 @@ void difftest_step(vaddr_t pc, vaddr_t npc) {
 
 **问题** 切换 DIFFTEST=0/1 后，Make 未感知命令行配置变化，继续复用旧仿真程序，导致编译宏与运行参数不一致并触发 DiffTest 断言
 **解决** 临时解决方案时执行`make clean`; 后续改进是增加stamp文件记录上一次的配置，并将其作为仿真程序的依赖
+
+### 为NPC添加trace
+
+**iringbuf**
+| 情况 | NEMU | NPC |
+|---|---|---|
+| DiffTest 失败 | dump | dump |
+| 未识别指令 | 设置 NEMU_ABORT 后 dump | 当前没有对应的统一路径 |
+| 周期上限、仿真器提前结束 | 没有 NPC 这类周期检查 | 设置 NPC_ABORT 后 dump |
+| 自定义 Assert() 失败 | 通过 assert_fail_msg() dump | 未接入 |
+
+```cpp
+if (exec_once()) {
+  itrace(...);       
+  difftest_step(...);
+}
+if (npc_state.state == NPC_ABORT) iringbuf_dump(); 
+// NPC 特别要要将dump 放到if（exec_once()）外, exec_once可能在没有新提交是因周期上线返回false, iringbuf 需要捕捉这种情况 
+
+```
   
 
 ### 为NPC添加config功能 
-搁置
 
-### 为NPC添加trace
+### 优化npc功能参数和重编译
+
+不方便的地方： 
+1. DIFFTEST =, ITRACE =  , NOARD = 需要在命令行输入
+2. DIFFTEST 切换需要手动clean npc 
+3. 不确定当前启用了什么
 
 
 ### 为NPC添加表达式求值，监视点

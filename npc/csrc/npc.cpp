@@ -1,4 +1,7 @@
 #include "include/npc.h"
+#ifdef ITRACE
+#include "include/trace.h"
+#endif
 #ifdef DIFFTEST
 #include "include/difftest.h"
 #endif
@@ -9,7 +12,10 @@
 #define MAX_CYCLE 200000000ULL
 #endif
 
+#define MAX_INST_TO_PRINT 10
+
 NPCState npc_state;
+static bool g_print_step = false;
 static uint64_t total_cycles = 0;
 static uint64_t total_instructions = 0;
 
@@ -38,16 +44,23 @@ static void execute(uint64_t n) {
     if (exec_once()) {
       ++total_instructions;
       --n;
+#ifdef ITRACE
+      itrace(npc_state.retire_pc, npc_state.retire_inst, g_print_step);
+#endif
 #ifdef DIFFTEST
       uint32_t npc;
       sim_read_pc(npc);
       difftest_step(npc_state.retire_pc, npc);
 #endif
     }
+#ifdef ITRACE
+    if (npc_state.state == NPC_ABORT) iringbuf_dump();
+#endif
   }
 }
 
 void npc_exec(uint64_t n) {
+  g_print_step = (n < MAX_INST_TO_PRINT);
   if (npc_state.state == NPC_END || npc_state.state == NPC_ABORT) {
     puts("Program execution has ended. Restart NPC to run again.");
     return;

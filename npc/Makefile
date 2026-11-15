@@ -1,3 +1,5 @@
+.DEFAULT_GOAL := default
+
 VERILATOR := verilator
 IVERILOG  := iverilog
 SIM  ?= verilator
@@ -79,6 +81,19 @@ VERILATOR_CFLAGS  += $(INC_FLAGS) $(VDEFINES)
 
 ifneq ($(WAVE),)
 CDEFINES += -DTRACE_ON
+endif
+
+ifeq ($(ITRACE),1)
+CAPSTONE_DIR := $(abspath $(NPC_HOME)/../nemu/tools/capstone)
+CAPSTONE_LIB := $(CAPSTONE_DIR)/repo/libcapstone.so.5
+ITRACE_CFLAGS := -DITRACE -DCAPSTONE_LIB=$(CAPSTONE_LIB) -I$(CAPSTONE_DIR)/repo/include
+CDEFINES += $(ITRACE_CFLAGS)
+LDFLAGS += -ldl
+
+$(SIM_BIN): $(CAPSTONE_LIB)
+
+$(CAPSTONE_LIB):
+	$(MAKE) -C $(CAPSTONE_DIR)
 endif
 
 ifeq ($(DIFFTEST),1)

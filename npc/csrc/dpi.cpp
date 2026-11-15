@@ -1,8 +1,8 @@
 #include "include/npc.h"
 
 extern "C" void sim_retire(int pc, int inst) {
-  (void)inst;
   npc_state.retire_pc = uint32_t(pc);
+  npc_state.retire_inst = uint32_t(inst);
   npc_state.retired = true;
 }
 
