@@ -9,16 +9,16 @@
 #include <capstone/capstone.h>
 #include "include/macro.h"
 
-static FILE *log_fp = nullptr;
+static FILE *log_fp = NULL;
 
 static void init_log(const char *log_file) {
   log_fp = stdout;
-  if (log_file != nullptr) {
+  if (log_file != NULL) {
     FILE *fp = fopen(log_file, "w");
-    assert(fp != nullptr);
+    assert(fp != NULL);
     log_fp = fp;
   }
-  printf("Log is written to %s\n", log_file != nullptr ? log_file : "stdout");
+  printf("Log is written to %s\n", log_file != NULL ? log_file : "stdout");
 }
 
 #define log_write(...) \
@@ -39,7 +39,7 @@ static void init_disasm() {
   void *dl_handle = dlopen(str(CAPSTONE_LIB), RTLD_LAZY);
   assert(dl_handle);
 
-  cs_err (*cs_open_dl)(cs_arch arch, cs_mode mode, csh *handle) = nullptr;
+  cs_err (*cs_open_dl)(cs_arch arch, cs_mode mode, csh *handle) = NULL;
   cs_open_dl = reinterpret_cast<decltype(cs_open_dl)>(dlsym(dl_handle, "cs_open"));
   assert(cs_open_dl);
 

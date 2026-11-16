@@ -73,7 +73,7 @@ static const struct {
   int (*handler) (char *);
 } cmd_table[] = {
   { "c", "Continue the execution of the program", cmd_c },
-  { "q", "Exit NEMU", cmd_q },
+  { "q", "Exit NPC", cmd_q },
   { "si"," Step through N instructions (default: 1)", cmd_si},
   { "info","Print program status", cmd_info},
   // { "x","Scan memory",cmd_x},
@@ -95,7 +95,7 @@ bool sdb_is_batch_mode(){
 
 void sdb_mainloop() {
   if (is_batch_mode) {
-    cmd_c(nullptr);
+    cmd_c(NULL);
     return;
   }
   for (char *str; (str = rl_gets()) != NULL; ) {

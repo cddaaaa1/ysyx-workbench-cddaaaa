@@ -20,111 +20,111 @@ uint8_t pmem[PMEM_SIZE];
 uint8_t flash[FLASH_SIZE];
 
 uint8_t* guest_to_host(uint32_t paddr) {
-	return pmem + (paddr - PMEM_BASE);
+  return pmem + (paddr - PMEM_BASE);
 }
 
 int pmem_load(const char *path)
 {
-	FILE *fp = fopen(path, "rb");
-	if (fp == NULL) {
-		perror(path);
-		return -1;
-	}
-	memset(pmem, 0, sizeof(pmem));
-	size_t size = fread(pmem, 1, sizeof(pmem), fp);
-	fclose(fp);
+  FILE *fp = fopen(path, "rb");
+  if (fp == NULL) {
+    perror(path);
+    return -1;
+  }
+  memset(pmem, 0, sizeof(pmem));
+  size_t size = fread(pmem, 1, sizeof(pmem), fp);
+  fclose(fp);
 
-	if (size == 0) {
-		fprintf(stderr, "%s: no instruction loaded\n", path);
-		return -1;
-	}
-	printf("[pmem] %s: %u bytes loaded at 0x%08x\n", path, (unsigned)size, PMEM_BASE);
-	return (int)size;
+  if (size == 0) {
+    fprintf(stderr, "%s: no instruction loaded\n", path);
+    return -1;
+  }
+  printf("[pmem] %s: %u bytes loaded at 0x%08x\n", path, (unsigned)size, PMEM_BASE);
+  return (int)size;
 }
 
 void flash_load(const char *path)
 {
-	FILE *fp = fopen(path, "rb");
-	assert(fp != NULL);
+  FILE *fp = fopen(path, "rb");
+  assert(fp != NULL);
 
-	memset(flash, 0, sizeof(flash));
-	size_t size = fread(flash, 1, sizeof(flash), fp);
-	fclose(fp);
+  memset(flash, 0, sizeof(flash));
+  size_t size = fread(flash, 1, sizeof(flash), fp);
+  fclose(fp);
 
-	assert(size > 0);
-	printf("[flash] %s: %u bytes loaded at 0x%08x\n", path, (unsigned)size, FLASH_BASE);
+  assert(size > 0);
+  printf("[flash] %s: %u bytes loaded at 0x%08x\n", path, (unsigned)size, FLASH_BASE);
 }
 
 static int addr_valid(uint32_t addr)
 {
-	if (addr < PMEM_BASE)
-		return 0;
-	if (addr >= PMEM_BASE + PMEM_SIZE) {
-		fprintf(stderr, "[pmem] access out of range: 0x%08x (base = 0x%08x, size = 0x%x)\n",
-		        addr, PMEM_BASE, PMEM_SIZE);
-		return 0;
-	}
-	return 1;
+  if (addr < PMEM_BASE)
+    return 0;
+  if (addr >= PMEM_BASE + PMEM_SIZE) {
+    fprintf(stderr, "[pmem] access out of range: 0x%08x (base = 0x%08x, size = 0x%x)\n",
+      addr, PMEM_BASE, PMEM_SIZE);
+    return 0;
+  }
+  return 1;
 }
 
 uint32_t pmem_read(uint32_t raddr)
 {	
-	if ((raddr & ~UART_REG_MASK) == UART16550) {
-		uint32_t v = (raddr == UART_REG_LS) ? UART_LS_TFE : 0;
-		return (v << ((raddr & 0x3u) * 8u));
-	}
+  if ((raddr & ~UART_REG_MASK) == UART16550) {
+    uint32_t v = (raddr == UART_REG_LS) ? UART_LS_TFE : 0;
+    return (v << ((raddr & 0x3u) * 8u));
+  }
 
-	uint32_t addr = raddr & ~0x3u;
-	if (!addr_valid(addr))
-		return 0;
+  uint32_t addr = raddr & ~0x3u;
+  if (!addr_valid(addr))
+    return 0;
 
-	uint32_t off = addr - PMEM_BASE;
-	uint32_t rdata	=((uint32_t)pmem[off + 0]
-	                | (uint32_t)pmem[off + 1] << 8
-	                | (uint32_t)pmem[off + 2] << 16
-	                | (uint32_t)pmem[off + 3] << 24);
-	IFDEF(MTRACE, printf("[mtrace] R addr = 0x%08x  rdata = 0x%08x\n",raddr,rdata));
-	return rdata;
+  uint32_t off = addr - PMEM_BASE;
+  uint32_t rdata	=((uint32_t)pmem[off + 0]
+    | (uint32_t)pmem[off + 1] << 8
+    | (uint32_t)pmem[off + 2] << 16
+    | (uint32_t)pmem[off + 3] << 24);
+  IFDEF(MTRACE, printf("[mtrace] R addr = 0x%08x  rdata = 0x%08x\n",raddr,rdata));
+  return rdata;
 }
 
 void pmem_write(uint32_t waddr, uint32_t wdata, char wmask)
 {
 
-	if ((waddr & ~UART_REG_MASK) == UART16550) {
-		uint8_t b = (uint8_t)(wdata >> ((waddr & 0x3u) * 8u));
-		if      (waddr == UART_REG_LC)      g_uart_lc = b;
-		else if (waddr  == UART_REG_TX && !(g_uart_lc & UART_LC_DLAB)) fputc(b, stderr);
-		return;
-	}
+  if ((waddr & ~UART_REG_MASK) == UART16550) {
+    uint8_t b = (uint8_t)(wdata >> ((waddr & 0x3u) * 8u));
+    if      (waddr == UART_REG_LC)      g_uart_lc = b;
+    else if (waddr  == UART_REG_TX && !(g_uart_lc & UART_LC_DLAB)) fputc(b, stderr);
+    return;
+  }
 
-	uint32_t addr = waddr & ~0x3u;
-	if (!addr_valid(addr))
-		return;
-	uint32_t off = addr - PMEM_BASE;
+  uint32_t addr = waddr & ~0x3u;
+  if (!addr_valid(addr))
+    return;
+  uint32_t off = addr - PMEM_BASE;
 
-	if (wmask & 0x1) pmem[off]     = (wdata & 0xff);
-	if (wmask & 0x2) pmem[off + 1] = (wdata >> 8) & 0xff;
-	if (wmask & 0x4) pmem[off + 2] = (wdata >> 16) & 0xff;
-	if (wmask & 0x8) pmem[off + 3] = (wdata >> 24) & 0xff;
+  if (wmask & 0x1) pmem[off]     = (wdata & 0xff);
+  if (wmask & 0x2) pmem[off + 1] = (wdata >> 8) & 0xff;
+  if (wmask & 0x4) pmem[off + 2] = (wdata >> 16) & 0xff;
+  if (wmask & 0x8) pmem[off + 3] = (wdata >> 24) & 0xff;
 
-	IFDEF(MTRACE, printf("[mtrace] W addr = 0x%08x  wdata = 0x%08x\n",waddr,wdata));
+  IFDEF(MTRACE, printf("[mtrace] W addr = 0x%08x  wdata = 0x%08x\n",waddr,wdata));
 }
 
 void flash_read(int32_t raddr, int32_t *data)
 {
-	uint32_t off = (uint32_t)raddr & 0xFFFFFFu;
-	off &= ~0x3u;
+  uint32_t off = (uint32_t)raddr & 0xFFFFFFu;
+  off &= ~0x3u;
 
-	if (off + 4 > FLASH_SIZE) {
-		fprintf(stderr, "[flash] read out of range: off = 0x%08x\n", off);
-		*data = 0;
-		return;
-	}
+  if (off + 4 > FLASH_SIZE) {
+    fprintf(stderr, "[flash] read out of range: off = 0x%08x\n", off);
+    *data = 0;
+    return;
+  }
 
-	uint32_t temp = (uint32_t)flash[off + 0]
-	              | (uint32_t)flash[off + 1] << 8
-	              | (uint32_t)flash[off + 2] << 16
-	              | (uint32_t)flash[off + 3] << 24;
+  uint32_t temp = (uint32_t)flash[off + 0]
+    | (uint32_t)flash[off + 1] << 8
+    | (uint32_t)flash[off + 2] << 16
+    | (uint32_t)flash[off + 3] << 24;
 
-	*data = (int32_t)temp;
+  *data = (int32_t)temp;
 }

@@ -203,20 +203,10 @@ if (npc_state.state == NPC_ABORT) iringbuf_dump();
 **ftrace**
 待实现
 
-### 优化npc功能参数和重编译
-
-不方便的地方： 
-1. DIFFTEST =, ITRACE =  , NOARD = 需要在命令行输入
-2. DIFFTEST 切换需要手动clean npc 
-3. 不确定当前启用了什么
-
-
 ### 为NPC添加表达式求值，监视点
-
+待实现
 
 ##### TODO:
 1. sdb: 扫描内存 表达式求值，监视点
 2. trace: itrace, mtrace, ftrace 
 3. 统一函数声明方式，头文件还是直接放在需要使用的文件
-4. makefile 流程
-5. 给NPC添加config

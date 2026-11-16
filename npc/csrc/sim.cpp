@@ -19,9 +19,9 @@ using TOP = Vnpc_top;
 void nvboard_bind_all_pins(TOP *top);
 #endif
 
-static VerilatedContext *contextp = nullptr;
-static VerilatedVcdC *tfp = nullptr;
-static TOP *top = nullptr;
+static VerilatedContext *contextp = NULL;
+static VerilatedVcdC *tfp = NULL;
+static TOP *top = NULL;
 
 static const auto &gpr_file() {
 #ifdef YSYXSOC
@@ -97,10 +97,10 @@ void sim_init(int argc, char *argv[]) {
 void sim_cleanup() {
   if (!top) return;
   top->final();
-  if (tfp) { tfp->close(); delete tfp; tfp = nullptr; }
+  if (tfp) { tfp->close(); delete tfp; tfp = NULL; }
   IFDEF(NVBOARD, nvboard_quit());
   delete top;
-  top = nullptr;
+  top = NULL;
   delete contextp;
-  contextp = nullptr;
+  contextp = NULL;
 }
