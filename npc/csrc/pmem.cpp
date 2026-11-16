@@ -4,6 +4,7 @@
 #include <string.h>
 #include <assert.h>
 #include "include/pmem.h"
+#include "include/macro.h"
 
 #define UART16550    0x10000000
 #define UART_REG_TX  (UART16550 + 0x0) 
@@ -66,46 +67,47 @@ static int addr_valid(uint32_t addr)
 	return 1;
 }
 
-int pmem_read(int raddr)
-{
-	uint32_t raw = (uint32_t)raddr;
-	
-	if ((raw & ~UART_REG_MASK) == UART16550) {
-		uint32_t v = (raw == UART_REG_LS) ? UART_LS_TFE : 0;
-		return (int)(v << ((raw & 0x3u) * 8u));
+uint32_t pmem_read(uint32_t raddr)
+{	
+	if ((raddr & ~UART_REG_MASK) == UART16550) {
+		uint32_t v = (raddr == UART_REG_LS) ? UART_LS_TFE : 0;
+		return (v << ((raddr & 0x3u) * 8u));
 	}
 
-	uint32_t addr = raw & ~0x3u;
+	uint32_t addr = raddr & ~0x3u;
 	if (!addr_valid(addr))
 		return 0;
 
 	uint32_t off = addr - PMEM_BASE;
-	return (int)((uint32_t)pmem[off + 0]
-	           | (uint32_t)pmem[off + 1] << 8
-	           | (uint32_t)pmem[off + 2] << 16
-	           | (uint32_t)pmem[off + 3] << 24);
+	uint32_t rdata	=((uint32_t)pmem[off + 0]
+	                | (uint32_t)pmem[off + 1] << 8
+	                | (uint32_t)pmem[off + 2] << 16
+	                | (uint32_t)pmem[off + 3] << 24);
+	IFDEF(MTRACE, printf("[mtrace] R addr = 0x%08x  rdata = 0x%08x\n",raddr,rdata));
+	return rdata;
 }
 
-void pmem_write(int waddr, int wdata, char wmask)
+void pmem_write(uint32_t waddr, uint32_t wdata, char wmask)
 {
-	uint32_t raw = (uint32_t)waddr;
 
-	if ((raw & ~UART_REG_MASK) == UART16550) {
-		uint8_t b = (uint8_t)((uint32_t)wdata >> ((raw & 0x3u) * 8u));
-		if      (raw == UART_REG_LC)                            g_uart_lc = b;
-		else if (raw == UART_REG_TX && !(g_uart_lc & UART_LC_DLAB)) fputc(b, stderr);
+	if ((waddr & ~UART_REG_MASK) == UART16550) {
+		uint8_t b = (uint8_t)(wdata >> ((waddr & 0x3u) * 8u));
+		if      (waddr == UART_REG_LC)      g_uart_lc = b;
+		else if (waddr  == UART_REG_TX && !(g_uart_lc & UART_LC_DLAB)) fputc(b, stderr);
 		return;
 	}
 
-	uint32_t addr = raw & ~0x3u;
+	uint32_t addr = waddr & ~0x3u;
 	if (!addr_valid(addr))
 		return;
 	uint32_t off = addr - PMEM_BASE;
 
-	if (wmask & 0x1) pmem[off]     = ((uint32_t)wdata & 0xff);
-	if (wmask & 0x2) pmem[off + 1] = ((uint32_t)wdata >> 8) & 0xff;
-	if (wmask & 0x4) pmem[off + 2] = ((uint32_t)wdata >> 16) & 0xff;
-	if (wmask & 0x8) pmem[off + 3] = ((uint32_t)wdata >> 24) & 0xff;
+	if (wmask & 0x1) pmem[off]     = (wdata & 0xff);
+	if (wmask & 0x2) pmem[off + 1] = (wdata >> 8) & 0xff;
+	if (wmask & 0x4) pmem[off + 2] = (wdata >> 16) & 0xff;
+	if (wmask & 0x8) pmem[off + 3] = (wdata >> 24) & 0xff;
+
+	IFDEF(MTRACE, printf("[mtrace] W addr = 0x%08x  wdata = 0x%08x\n",waddr,wdata));
 }
 
 void flash_read(int32_t raddr, int32_t *data)

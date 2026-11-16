@@ -193,9 +193,15 @@ if (exec_once()) {
 }
 if (npc_state.state == NPC_ABORT) iringbuf_dump(); 
 // NPC 特别要要将dump 放到if（exec_once()）外, exec_once可能在没有新提交是因周期上线返回false, iringbuf 需要捕捉这种情况 
-
 ```
 
+**mtrace**
+
+在pmem_read和pmem_write中打印访存地址和数据，config.mk中控制开关
+目前会同时打印取指和访存；如有需要可以通过将pmem_read分成pmem_read_inst, pmem_read_data 来识别取指指令，并不打印
+
+**ftrace**
+待实现
 
 ### 优化npc功能参数和重编译
 

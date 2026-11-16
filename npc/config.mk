@@ -1,3 +1,4 @@
 DIFFTEST = 1
-ITRACE = 1# only iringbuf, logwrite to log file is off 
+ITRACE = 1
+MTRACE = 0
 BOARD = 0

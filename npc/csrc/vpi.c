@@ -26,7 +26,7 @@ static PLI_INT32 pmem_read_calltf(PLI_BYTE8 *ud) {
 
 	s_vpi_value rv;
 	rv.format = vpiIntVal;
-	rv.value.integer = (PLI_INT32)pmem_read((int)addr);
+	rv.value.integer = (PLI_INT32)pmem_read(addr);
 	vpi_put_value(sys, &rv, NULL, vpiNoDelay);   // 函数返回值写在调用句柄上
 	return 0;
 }
@@ -38,7 +38,7 @@ static PLI_INT32 pmem_write_calltf(PLI_BYTE8 *ud) {
 	uint32_t addr = arg_u32(&it);
 	uint32_t data = arg_u32(&it);
 	uint32_t mask = arg_u32(&it);
-	pmem_write((int)addr, (int)data, (char)mask);
+	pmem_write(addr, data, (char)mask);
 	return 0;
 }
 

@@ -16,8 +16,8 @@ module dpic_mem(
     output reg lsu_respValid
 );
 `ifndef __ICARUS__
-    import "DPI-C" function int  pmem_read (input int raddr);
-    import "DPI-C" function void pmem_write(input int waddr, input int wdata, input byte wmask);
+    import "DPI-C" function int unsigned pmem_read(input int unsigned raddr);
+    import "DPI-C" function void pmem_write(input int unsigned waddr, input int unsigned wdata, input byte wmask);
 `endif
 
     reg [31:0] ifu_addr_r;

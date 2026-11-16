@@ -19,6 +19,17 @@ static bool g_print_step = false;
 static uint64_t total_cycles = 0;
 static uint64_t total_instructions = 0;
 
+void sim_retire(int pc, int inst) {
+  npc_state.retire_pc = uint32_t(pc);
+  npc_state.retire_inst = uint32_t(inst);
+  npc_state.retired = true;
+}
+
+void ebreak(int code) {
+  npc_state.halt_ret = uint32_t(code);
+  npc_state.state = NPC_END;
+}
+
 static bool exec_once() {
   while (npc_state.state == NPC_RUNNING) {
     if (sim_finished() || total_cycles >= MAX_CYCLE) {

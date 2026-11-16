@@ -97,6 +97,11 @@ $(CAPSTONE_LIB):
 	$(MAKE) -C $(CAPSTONE_DIR)
 endif
 
+ifeq ($(MTRACE),1)
+CDEFINES += -DMTRACE
+endif
+
+
 ifeq ($(DIFFTEST),1)
 CDEFINES += -DDIFFTEST
 SIM_CSRC += $(CSRC_DIR)/difftest/dut.cpp
