@@ -169,7 +169,6 @@ include $(AM_HOME)/Makefile
 
 6. AM 子 Make 完成后，返回客户程序的构建。等 dummy.o、AM 库和 klib 库都准备好，再共同链接生成：`dummy-riscv32-nemu.elf`
 
-
 #### 可执行文件的链接与内存布局
 
 **Makefile 指定链接的输入和输出**

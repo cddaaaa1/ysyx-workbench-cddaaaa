@@ -1,21 +1,22 @@
-module ysyx_26100296_gpr #(ADDR_WIDTH = 5, DATA_WIDTH = 32) (
-  input clk,
-  input [DATA_WIDTH-1:0] wdata,
-  input [ADDR_WIDTH-1:0] waddr,
-  input wen,
-  
-  input  [ADDR_WIDTH-1:0] raddr1,
-  input  [ADDR_WIDTH-1:0] raddr2,
-  output [DATA_WIDTH-1:0] rdata1,
-  output [DATA_WIDTH-1:0] rdata2
+`include "define.vh"
+
+module ysyx_26100296_gpr (
+  input clk_i,
+  input [`CPU_WIDTH-1:0] wdata_i,
+  input [`REG_WIDTH-1:0] waddr_i,
+  input wen_i,
+
+  input  [`REG_WIDTH-1:0] raddr1_i,
+  input  [`REG_WIDTH-1:0] raddr2_i,
+  output [`CPU_WIDTH-1:0] rdata1_o,
+  output [`CPU_WIDTH-1:0] rdata2_o
 );
-  reg [DATA_WIDTH-1:0] rf [2**ADDR_WIDTH-1:0];
-  always @(posedge clk) begin
-    if (wen) rf[waddr] <= wdata;
+  reg [`CPU_WIDTH-1:0] rf [2**`REG_WIDTH-1:0];
+  always @(posedge clk_i) begin
+    if (wen_i) rf[waddr_i] <= wdata_i;
   end
 
-
-  assign rdata1 = (raddr1 == 0) ? {DATA_WIDTH{1'b0}} : rf[raddr1];
-  assign rdata2 = (raddr2 == 0) ? {DATA_WIDTH{1'b0}} : rf[raddr2];
+  assign rdata1_o = (raddr1_i == 0) ? {`CPU_WIDTH{1'b0}} : rf[raddr1_i];
+  assign rdata2_o = (raddr2_i == 0) ? {`CPU_WIDTH{1'b0}} : rf[raddr2_i];
 endmodule
 

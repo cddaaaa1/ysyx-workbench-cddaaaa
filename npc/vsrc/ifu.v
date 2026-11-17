@@ -1,29 +1,29 @@
 `include "define.vh"
 module ysyx_26100296_ifu(
-        input  clk,
-        input  rst,
-        input  [31:0] pc,         // 来自 pc_reg: 当前 PC
-        input  [31:0] ifu_rdata,  // SimpleBus: 存储器返回的指令
-        input         lsu_busy,   // LSU 还在等存储器返回数据, 这拍不能发新请求
-        output [31:0] inst,       // 送给 IDU, 仅当 ifu_valid 有效时才是有效指令
-        output        ifu_valid,  // 本拍的 inst 是有效指令, 顶层用它屏蔽状态更新
-        output [31:0] ifu_addr,   // SimpleBus: 取指地址
-        input         ifu_respValid,
-        output        ifu_reqValid
+  input  clk_i,
+  input  rst_i,
+  input  [`CPU_WIDTH-1:0] pc_i,
+  input  [`CPU_WIDTH-1:0] ifu_rdata_i,
+  input         lsu_busy_i,
+  output [`CPU_WIDTH-1:0] inst_o,
+  output        ifu_valid_o,
+  output [`CPU_WIDTH-1:0] ifu_addr_o,
+  input         ifu_respValid_i,
+  output        ifu_reqValid_o
 );
-    reg state;
+  reg state;
 
-    always @(posedge clk) begin
-        if (rst) begin
-            state <= `IFU_IDLE;
-        end
-        else if (state == `IFU_IDLE) state <= ifu_reqValid ? `IFU_WAIT : `IFU_IDLE;
-        else                         state <= ifu_respValid ? `IFU_IDLE : `IFU_WAIT;
+  always @(posedge clk_i) begin
+    if (rst_i) begin
+      state <= `IFU_IDLE;
     end
+    else if (state == `IFU_IDLE) state <= ifu_reqValid_o ? `IFU_WAIT : `IFU_IDLE;
+    else                         state <= ifu_respValid_i ? `IFU_IDLE : `IFU_WAIT;
+  end
 
-    assign ifu_reqValid = (state == `IFU_IDLE) && !lsu_busy; 
-    assign ifu_valid = (state == `IFU_WAIT) && ifu_respValid;
-    
-    assign ifu_addr = pc;
-    assign inst = ifu_rdata;
+  assign ifu_reqValid_o = (state == `IFU_IDLE) && !lsu_busy_i;
+  assign ifu_valid_o = (state == `IFU_WAIT) && ifu_respValid_i;
+
+  assign ifu_addr_o = pc_i;
+  assign inst_o = ifu_rdata_i;
 endmodule

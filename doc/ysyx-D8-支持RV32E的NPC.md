@@ -63,6 +63,37 @@ static const auto &gpr_file() {
 }
 ```
 
+#### 添加trace
+
+**iringbuf**
+| 情况 | NEMU | NPC |
+|---|---|---|
+| DiffTest 失败 | dump | dump |
+| 未识别指令 | 设置 NEMU_ABORT 后 dump | 当前没有对应的统一路径 |
+| 周期上限、仿真器提前结束 | 没有 NPC 这类周期检查 | 设置 NPC_ABORT 后 dump |
+| 自定义 Assert() 失败 | 通过 assert_fail_msg() dump | 未接入 |
+
+```cpp
+if (exec_once()) {
+  itrace(...);       
+  difftest_step(...);
+}
+if (npc_state.state == NPC_ABORT) iringbuf_dump(); 
+// NPC 特别要要将dump 放到if（exec_once()）外, exec_once可能在没有新提交是因周期上线返回false, iringbuf 需要捕捉这种情况 
+```
+
+**mtrace**
+
+在pmem_read和pmem_write中打印访存地址和数据，config.mk中控制开关
+目前会同时打印取指和访存；如有需要可以通过将pmem_read分成pmem_read_inst, pmem_read_data 来识别取指指令，并不打印
+
+**ftrace**
+*待实现*
+
+#### 添加表达式求值，监视点
+*待实现*
+
+
 ### 为NPC添加DiffTest支持
 
 **初始化+memcpy复制镜像**
@@ -176,37 +207,73 @@ void difftest_step(vaddr_t pc, vaddr_t npc) {
 **问题** 切换 DIFFTEST=0/1 后，Make 未感知命令行配置变化，继续复用旧仿真程序，导致编译宏与运行参数不一致并触发 DiffTest 断言
 **解决** 添加config.mk 作为make sim 依赖， 后续改进是增加stamp文件记录上一次实际使用的配置，这样可以同时使用命令行和config.mk配置
 
-### 为NPC添加trace
 
-**iringbuf**
-| 情况 | NEMU | NPC |
-|---|---|---|
-| DiffTest 失败 | dump | dump |
-| 未识别指令 | 设置 NEMU_ABORT 后 dump | 当前没有对应的统一路径 |
-| 周期上限、仿真器提前结束 | 没有 NPC 这类周期检查 | 设置 NPC_ABORT 后 dump |
-| 自定义 Assert() 失败 | 通过 assert_fail_msg() dump | 未接入 |
+### 搭建riscv32e-npc的AM
 
-```cpp
-if (exec_once()) {
-  itrace(...);       
-  difftest_step(...);
+**为riscv32e-npc提供run目标**
+am-kernels/tests/cpu-tests/Makefile
+│
+└─ 启动子 Make：
+   make -s -f Makefile.dummy ARCH=riscv32e-npc run
+   │
+   └─ 读取 Makefile.dummy，内容等价于：
+      NAME = dummy
+      SRCS = tests/dummy.c
+      include $(AM_HOME)/Makefile
+      │
+      └─ 读取 abstract-machine/Makefile
+         │
+         └─ 根据 ARCH 引入平台配置：
+            -include $(AM_HOME)/scripts/$(ARCH).mk
+            │
+            └─ ARCH=riscv32e-npc，展开为：
+               abstract-machine/scripts/riscv32e-npc.mk
+               │
+               ├─ include $(AM_HOME)/scripts/isa/riscv.mk
+               │  配置 RISC-V 工具链和通用编译选项
+               │
+               └─ include $(AM_HOME)/scripts/platform/npc.mk
+                  提供 NPC 平台源码列表、镜像生成和 run 规则
+
+同时npc/Makefile中ARCH=riscv32e-npc 和minirv-npc 共享同一份配置
+
+**实现riscv32e-npc中的halt()函数**
+```c
+void halt(int code) {
+  asm volatile("mv a0, %0; ebreak" : :"r"(code));
+  while (1);
 }
-if (npc_state.state == NPC_ABORT) iringbuf_dump(); 
-// NPC 特别要要将dump 放到if（exec_once()）外, exec_once可能在没有新提交是因周期上线返回false, iringbuf 需要捕捉这种情况 
+```
+**验收-cputest**
+- ARCH=minirv-npc, 除wrong.c ALL PASS 
+- ARCH=riscv32e-npc, 因npc不支持auipc指令difftest报错，符合预期
+
+### RV32E 架构图
+
+![教科书架构图](../pic/D8-教科书架构图.png)
+
+
+### 支持RV32E指令
+
+**Branch** 
+Branch 指令需要完成两项计算：分支条件比较和目标地址计算。原先 JALR 使用主 ALU 计算目标地址，但单个双输入 ALU 无法在同一周期同时完成这两项计算。因此，在 exu.v 中增加独立加法器，计算 JUMP 和 Branch 的目标地址，主 ALU 则负责分支条件比较。
+
+**difftest也会误导**
+```bash
+0x800000b8: 00 f1 10 23 sh      a5, 0(sp)   # 实际原因是sh还没实现，但difftest不检查内存， 所以没报错
+0x800000bc: f6 df f0 ef jal     -0x94
+0x80000028: 40 35 d7 93 srai    a5, a1, 3
+0x8000002c: 00 f5 05 33 add     a0, a0, a5
+0x80000030: 00 05 45 03 lbu     a0, 0(a0)   # difftest报错位置
 ```
 
-**mtrace**
+**Q: 硬件如何区分有符号数和无符号数?**
 
-在pmem_read和pmem_write中打印访存地址和数据，config.mk中控制开关
-目前会同时打印取指和访存；如有需要可以通过将pmem_read分成pmem_read_inst, pmem_read_data 来识别取指指令，并不打印
 
-**ftrace**
-待实现
+**测试**
+- `make -C am-kernels/tests/cpu-tests ARCH=riscv32e-npc run` 除开 wrong  ALL pass
+- `make -C riscv-tests ARCH=riscv32e-npc TEST_ISA=i run` ALL PASS
 
-### 为NPC添加表达式求值，监视点
-待实现
-
-##### TODO:
-1. sdb: 扫描内存 表达式求值，监视点
-2. trace: itrace, mtrace, ftrace 
-3. 统一函数声明方式，头文件还是直接放在需要使用的文件
+### TODO
+1. lsu_misalign 向仿真环境报错
+2. 

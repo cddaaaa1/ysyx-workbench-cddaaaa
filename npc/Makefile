@@ -27,7 +27,7 @@ LDFLAGS += -lreadline
 NPC_ARGS ?= -b  --log=$(BUILD_DIR)/npc-log.txt
 CDEFINES += -DTOP_NAME=V$(TOPNAME) 
 
-ifeq ($(ARCH),minirv-npc)
+ifneq ($(filter minirv-npc riscv32e-npc,$(ARCH)),)
   TOPNAME   := npc_top
   SIM_VSRCS := $(NPC_VSRCS)
   VDEFINES  := 

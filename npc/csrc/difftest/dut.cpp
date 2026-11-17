@@ -45,15 +45,15 @@ void init_difftest(const char *ref_so_file, long img_size, int port) {
 
 static bool difftest_checkregs(CPUState *ref_r, vaddr_t pc) {
   if (ref_r->pc != cpu_state.pc) {
-    printf("Difftest: pc is different at pc = 0x%08x, ref.pc = 0x%08x, dut.pc = 0x%08x\n",
-           pc, ref_r->pc, cpu_state.pc);
+    printf(ANSI_FMT("[difftest] pc is different at pc = 0x%08x, ref.pc = 0x%08x, dut.pc = 0x%08x", ANSI_FG_YELLOW) "\n",
+       pc, ref_r->pc, cpu_state.pc);
     return false;
   }
   size_t gpr_count = sizeof(cpu_state.gpr) / sizeof(cpu_state.gpr[0]);
   for (size_t i = 0; i < gpr_count; i++) {
     if (ref_r->gpr[i] != cpu_state.gpr[i]) {
-      printf("Difftest: gpr[%zu] is different at pc = 0x%08x, ref.gpr[%zu] = 0x%08x, dut.gpr[%zu] = 0x%08x\n",
-             i, pc, i, ref_r->gpr[i], i, cpu_state.gpr[i]);
+      printf(ANSI_FMT("[difftest] gpr[%zu] is different at pc = 0x%08x, ref.gpr[%zu] = 0x%08x, dut.gpr[%zu] = 0x%08x", ANSI_FG_YELLOW) "\n",
+       i, pc, i, ref_r->gpr[i], i, cpu_state.gpr[i]);
       return false;
     }
   }

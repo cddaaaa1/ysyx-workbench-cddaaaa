@@ -1,18 +1,19 @@
-// 通用寄存器: 同步高电平复位, i_wen 有效时在时钟上升沿载入 i_din
+`include "define.vh"
+
 module stdreg #(
-	parameter WIDTH     = 32,
-	parameter RESET_VAL = 0
+  parameter WIDTH     = `CPU_WIDTH,
+  parameter RESET_VAL = 0
 )(
-	input                i_clk,
-	input                i_rst,
-	input                i_wen,
-	input  [WIDTH-1:0]   i_din,
-	output reg [WIDTH-1:0] o_dout
+  input                clk_i,
+  input                rst_i,
+  input                wen_i,
+  input  [WIDTH-1:0]   din_i,
+  output reg [WIDTH-1:0] dout_o
 );
 
-	always @(posedge i_clk) begin
-		if (i_rst)     o_dout <= RESET_VAL;
-		else if (i_wen)   o_dout <= i_din;
-	end
+  always @(posedge clk_i) begin
+    if (rst_i)     dout_o <= RESET_VAL;
+    else if (wen_i)   dout_o <= din_i;
+  end
 
 endmodule

@@ -3,6 +3,11 @@
 
 #include <stdint.h>
 
+#define ANSI_FG_RED    "\033[91m"
+#define ANSI_FG_YELLOW "\033[93m"
+#define ANSI_NONE      "\033[0m"
+#define ANSI_FMT(str, fmt) fmt str ANSI_NONE
+
 enum { NPC_RUNNING, NPC_STOP, NPC_END, NPC_ABORT, NPC_QUIT};
 struct NPCState {
   int state = NPC_STOP;

@@ -1,25 +1,27 @@
 `include "define.vh"
 module ysyx_26100296_wbu(
-        input  [31:0] pc,          
-        input  [1:0]  wb_sel,     
-        input  [31:0] alu_result,  
-        input  [31:0] mem_rdata,   
-        input  [31:0] csr_rdata,   
-        input         jump,        
-        input  [31:0] jump_target, 
-        output reg [31:0] wb_data, 
-        output reg [31:0] next_pc  
+  input  [`CPU_WIDTH-1:0] pc_i,
+  input  [1:0]  wb_sel_i,
+  input  [`CPU_WIDTH-1:0] alu_result_i,
+  input  [`CPU_WIDTH-1:0] mem_rdata_i,
+  input  [`CPU_WIDTH-1:0] csr_rdata_i,
+  input         redirect_i,
+  input  [`CPU_WIDTH-1:0] redirect_target_i,
+  output reg [`CPU_WIDTH-1:0] wb_data_o,
+  output reg [`CPU_WIDTH-1:0] next_pc_o
 );
 
-    always @* begin
-        case (wb_sel)
-            `WB_ALU: wb_data = alu_result;
-            `WB_MEM: wb_data = mem_rdata;
-            `WB_PC4: wb_data = pc + 32'd4;
-            `WB_CSR: wb_data = csr_rdata;
-            default: wb_data = 32'h0;  
-        endcase
+  wire [`CPU_WIDTH-1:0] pc_plus4 = pc_i + `CPU_WIDTH'd4;
 
-        next_pc = jump ? jump_target : (pc + 32'd4);
-    end
+  always @* begin
+    case (wb_sel_i)
+      `WB_ALU: wb_data_o = alu_result_i;
+      `WB_MEM: wb_data_o = mem_rdata_i;
+      `WB_PC4: wb_data_o = pc_plus4;
+      `WB_CSR: wb_data_o = csr_rdata_i;
+      default: wb_data_o = {`CPU_WIDTH{1'b0}};
+    endcase
+  end
+
+  assign next_pc_o = redirect_i ? redirect_target_i : pc_plus4;
 endmodule

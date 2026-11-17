@@ -8,6 +8,7 @@
 #include <string.h>
 #include <capstone/capstone.h>
 #include "include/macro.h"
+#include "include/utils.h"
 
 static FILE *log_fp = NULL;
 
@@ -86,11 +87,15 @@ static void iringbuf_push(const char *record) {
 
 void iringbuf_dump() {
   if (b->count == 0) return;
-
+  printf("\n" ANSI_FMT("[itrace]", ANSI_FG_YELLOW) "\n");
   size_t start = (b->count == IRINGBUF_CAPACITY) ? b->next : 0;
   for (size_t i = 0; i < b->count; i ++) {
     size_t index = (start + i) % IRINGBUF_CAPACITY;
-    printf("%s\n", b->records[index]);
+    if (i + 1 == b->count) {
+      printf(ANSI_FMT("%s", ANSI_FG_RED) "\n", b->records[index]);
+    } else {
+      printf("%s\n", b->records[index]);
+    }
   }
 }
 

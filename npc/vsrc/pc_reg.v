@@ -1,16 +1,16 @@
 `include "define.vh"
 module ysyx_26100296_pc_reg (
-	input        clk,
-	input        rst,
-	input        we,
-	input  [31:0] next_pc,
-	output reg [31:0] pc
+  input        clk_i,
+  input        rst_i,
+  input        we_i,
+  input  [`CPU_WIDTH-1:0] next_pc_i,
+  output reg [`CPU_WIDTH-1:0] pc_o
 );
 
-	always @(posedge clk) begin
-		if (rst)
-			pc <= `PC_RESET;
-		else if (we)
-			pc <= next_pc;
-	end
+  always @(posedge clk_i) begin
+    if (rst_i)
+      pc_o <= `PC_RESET;
+    else if (we_i)
+      pc_o <= next_pc_i;
+  end
 endmodule

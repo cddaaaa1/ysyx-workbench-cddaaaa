@@ -1,52 +1,52 @@
 `include "define.vh"
 module ysyx_26100296_csr(
-	input         clk,
-	input         rst,
-	input  [11:0] addr,
-	output [31:0] rdata
+  input         clk_i,
+  input         rst_i,
+  input  [11:0] addr_i,
+  output [`CPU_WIDTH-1:0] rdata_o
 );
 
-	wire [31:0] mvendorid;
-	wire [31:0] marchid;
-    wire [63:0] mcycle;
+  wire [`CPU_WIDTH-1:0] mvendorid;
+  wire [`CPU_WIDTH-1:0] marchid;
+  wire [63:0] mcycle;
 
-	stdreg #(
-		.WIDTH    (32),
-		.RESET_VAL(`MVENDORID_VAL)
-	) reg_mvendorid (
-		.i_clk  (clk),
-		.i_rst  (rst),
-		.i_wen  (1'b0),
-		.i_din  (32'b0),
-		.o_dout (mvendorid)
-	);
+  stdreg #(
+    .WIDTH    (`CPU_WIDTH),
+    .RESET_VAL(`MVENDORID_VAL)
+  ) reg_mvendorid (
+    .clk_i  (clk_i),
+    .rst_i  (rst_i),
+    .wen_i  (1'b0),
+    .din_i  ({`CPU_WIDTH{1'b0}}),
+    .dout_o (mvendorid)
+  );
 
-	stdreg #(
-		.WIDTH    (32),
-		.RESET_VAL(`MARCHID_VAL)
-	) reg_marchid (
-		.i_clk  (clk),
-		.i_rst  (rst),
-		.i_wen  (1'b0),
-		.i_din  (32'b0),
-		.o_dout (marchid)
-	);
+  stdreg #(
+    .WIDTH    (`CPU_WIDTH),
+    .RESET_VAL(`MARCHID_VAL)
+  ) reg_marchid (
+    .clk_i  (clk_i),
+    .rst_i  (rst_i),
+    .wen_i  (1'b0),
+    .din_i  ({`CPU_WIDTH{1'b0}}),
+    .dout_o (marchid)
+  );
 
-    stdreg #(
-		.WIDTH    (64),
-		.RESET_VAL(64'b0)
-	) reg_mcycle (
-		.i_clk  (clk),
-		.i_rst  (rst),
-		.i_wen  (1'b1),
-		.i_din  (mcycle + 64'd1),
-		.o_dout (mcycle)
-	);
+  stdreg #(
+    .WIDTH    (64),
+    .RESET_VAL(64'b0)
+  ) reg_mcycle (
+    .clk_i  (clk_i),
+    .rst_i  (rst_i),
+    .wen_i  (1'b1),
+    .din_i  (mcycle + 64'd1),
+    .dout_o (mcycle)
+  );
 
-	assign rdata = (addr == `CSR_MVENDORID) ? mvendorid     :
-	               (addr == `CSR_MARCHID)   ? marchid       :
-	               (addr == `CSR_MCYCLE)    ? mcycle[31:0]  :
-	               (addr == `CSR_MCYCLEH)   ? mcycle[63:32] :
-	                                          32'h0;
+  assign rdata_o = (addr_i == `CSR_MVENDORID) ? mvendorid     :
+    (addr_i == `CSR_MARCHID)   ? marchid       :
+    (addr_i == `CSR_MCYCLE)    ? mcycle[31:0]   :
+    (addr_i == `CSR_MCYCLEH)   ? mcycle[63:32] :
+    {`CPU_WIDTH{1'b0}};
 
 endmodule
