@@ -1,4 +1,5 @@
 #include "include/npc.h"
+#include "monitor/sdb/watchpoint.h"
 #ifdef ITRACE
 #include "include/trace.h"
 #endif
@@ -50,6 +51,17 @@ static bool exec_once() {
   return false;
 }
 
+static void _check_wp() {
+  if (check_wp()) {
+    /* Use the retired instruction because the current PC may have advanced. */
+    printf("At pc = 0x%08" PRIx32 " (inst = 0x%08" PRIx32 ")\n",
+           npc_state.retire_pc, npc_state.retire_inst);
+    /* Preserve DiffTest failures and program termination. */
+    if (npc_state.state == NPC_RUNNING)
+      npc_state.state = NPC_STOP;
+  }
+}
+
 static void execute(uint64_t n) {
   while (n > 0 && npc_state.state == NPC_RUNNING) {
     if (exec_once()) {
@@ -63,6 +75,7 @@ static void execute(uint64_t n) {
       sim_read_pc(npc);
       difftest_step(npc_state.retire_pc, npc);
 #endif
+      _check_wp();
     }
 #ifdef ITRACE
     if (npc_state.state == NPC_ABORT) iringbuf_dump();

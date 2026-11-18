@@ -57,9 +57,7 @@ void flash_load(const char *path)
 
 static int addr_valid(uint32_t addr)
 {
-  if (addr < PMEM_BASE)
-    return 0;
-  if (addr >= PMEM_BASE + PMEM_SIZE) {
+  if (addr - PMEM_BASE >= PMEM_SIZE){
     fprintf(stderr, "[pmem] access out of range: 0x%08x (base = 0x%08x, size = 0x%x)\n",
       addr, PMEM_BASE, PMEM_SIZE);
     return 0;
@@ -75,7 +73,7 @@ uint32_t pmem_read(uint32_t raddr)
   }
 
   uint32_t addr = raddr & ~0x3u;
-  if (!addr_valid(addr))
+  if (!addr_valid(raddr))
     return 0;
 
   uint32_t off = addr - PMEM_BASE;
@@ -98,7 +96,7 @@ void pmem_write(uint32_t waddr, uint32_t wdata, char wmask)
   }
 
   uint32_t addr = waddr & ~0x3u;
-  if (!addr_valid(addr))
+  if (!addr_valid(waddr))
     return;
   uint32_t off = addr - PMEM_BASE;
 

@@ -22,9 +22,10 @@ NPC_SIM_VSRCS := $(VSRC_DIR)/npc_top.v $(VSRC_DIR)/dpic_mem.v
 SOC_VSRCS   = $(shell find $(PERIP_DIR) \( -name "*.v" -o -name "*.sv" \)) $(ELABORATE_TOP)
 HDRS        := $(wildcard $(VSRC_DIR)/include/*.vh) $(wildcard $(CSRC_DIR)/include/*.h)
 SIM_CSRC    := $(wildcard $(CSRC_DIR)/*.cpp) $(wildcard $(CSRC_DIR)/monitor/*.cpp) $(wildcard $(CSRC_DIR)/monitor/sdb/*.cpp)
+# watchpoint.c uses NPC's C++ debugger interfaces.
+SIM_CSRC += $(CSRC_DIR)/monitor/sdb/watchpoint.c
 HDRS += $(wildcard $(CSRC_DIR)/monitor/*.h) $(wildcard $(CSRC_DIR)/monitor/sdb/*.h)
 LDFLAGS += -lreadline
-BATCH ?= 1
 NPC_ARGS ?= $(if $(filter 1,$(BATCH)),-b) --log=$(BUILD_DIR)/npc-log.txt
 CDEFINES += -DTOP_NAME=V$(TOPNAME) 
 

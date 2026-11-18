@@ -90,8 +90,11 @@ if (npc_state.state == NPC_ABORT) iringbuf_dump();
 **ftrace**
 *待实现*
 
-#### 添加表达式求值，监视点
-*待实现*
+#### 为NPC添加表达式求值
+整体照搬nemu的实现，适配reg_str2val, nemu 直接读cpu.gpr[i], npc 中有对应的cpu_state.gpr 但其更新在difftes绑定，所以reg_str2val直接读... 
+
+#### 为NPC添加监视点
+
 
 
 ### 为NPC添加DiffTest支持
@@ -284,17 +287,29 @@ uint32_t fun2(uint32_t a, uint32_t b) { return a < b; }
 ```
 寄存器的二进制数据本身没有有符号或无符号的标签。当运算确实需要区分时，由编译器选择对应的指令，硬件再根据指令决定如何解释这些位。如果传入a = 0xffffffff，b = 0x00000001。 fun1 有符号， a看成-1，-1<1成立所以返回1； fun2 无符号， a看成4294967295， 4294967295 < 1不成立，返回0。
 
+**Q:RV32E不包含乘除指令, NPC如何正确运行包含乘除法操作的C程序?**
+`abstract-machine/scripts/riscv32e-npc.mk` 定义了编译配置，`-march=rv32e_zics` 指定编译生成的代码可以使用rv32e + csr的指令集,  `-mabi=ilp32e` ABI,规定函数参数、返回值怎么传，哪些寄存器需要保存。 
 
 **测试**
 - `make -C am-kernels/tests/cpu-tests ARCH=riscv32e-npc run` 除开 wrong  ALL pass
 - `make -C riscv-tests ARCH=riscv32e-npc TEST_ISA=i run` ALL PASS
 - `make -C riscv-arch-test ARCH=riscv32e-npc TEST_ISA=E run` ALL PASS 
-
-
-**问题**
--`make -C riscv-arch-test ARCH=minirv-npc TEST_ISA=E run ALL=add-01` 报 `address = 0x01fddb79 is out of bound of pmem [0x80000000, 0x87ffffff] at pc = 0x800000f0` 
-- 已通过反汇编定位到指令：`800000f0:	fe812e23          	sw	s0,-4(sp)`
 - 
+
+
+**riscv-arch-test：minirv-npc 栈访问越界**
+
+- 执行 `make -C riscv-arch-test ARCH=minirv-npc TEST_ISA=E run ALL=add-01`，在 PC `0x800000f0` 访问地址 `0x01fddb79`，超出 pmem 范围 `[0x80000000, 0x87ffffff]`。
+- 通过反汇编定位到 `sw s0,-4(sp)`；实现 watchpoint 监视 `$sp`，找到前一次修改来自 `0x800000ec` 的 `add sp,gp,tp`。
+- 该 `add` 是原始指令 `srli sp,ra,7` 经 minirv 展开后的最后一步。测试初始化中的原始指令为：
+
+  ```asm
+  srli sp, ra, 7
+  srli a5, ra, 25
+  ```
+
+- 第一条右移将 sp 写为测试数据 `0x01fddb7d`；第二条右移的 minirv 展开代码通过 `sw s0,-4(sp)` 保存临时寄存器，因而访问非法地址 `0x01fddb79`。
+- 根因是软件适配冲突：架构测试将 x2（sp）当作普通寄存器初始化，而 minirv 替换代码依赖有效的栈指针。这次越界不属于硬件计算错误。
 
 ### TODO
 1. lsu_misalign 向仿真环境报错

@@ -1,4 +1,5 @@
 #include "sdb.h"
+#include "watchpoint.h"
 #include "include/npc.h"
 #include "include/reg.h"
 #include <stdio.h>
@@ -62,8 +63,7 @@ static int cmd_info(char *args){
   }else if (strcmp(arg, "r") == 0) {
     reg_display();
   }else if (strcmp(arg, "w") == 0) {
-    // display_wp();
-    printf("display watch point not implemented\n");
+    display_wp();
   }else {
     printf("Unknown info subcommand: %s\n", arg);
   }
@@ -85,6 +85,37 @@ static int cmd_p(char *args){
   return 0;
 }
 
+static int cmd_w(char *args){
+  if (args == NULL) {
+    printf("Usage: w EXPR\n");
+    return 0;
+  }
+  WP *wp = new_wp(args);
+  if (wp == NULL) {
+    return 0;
+  }
+  printf("Watchpoint %d set for expression: %s\n", wp->NO, wp->e);
+  return 0;
+}
+
+static int cmd_d(char *args){
+  char *no_str = strtok(NULL, " ");
+  char *extra_arg = strtok(NULL, " ");
+  long no;
+  char trailing;
+  if (args == NULL || no_str == NULL || extra_arg != NULL ||
+      sscanf(no_str, "%ld %c", &no, &trailing) != 1 || no < 0) {
+    printf("Usage: d N\n");
+    return 0;
+  }
+  if (delete_wp(no)) {
+    printf("Watchpoint %ld deleted.\n", no);
+  } else {
+    printf("No watchpoint number %ld.\n", no);
+  }
+  return 0;
+}
+
 static const struct {
   const char *name;
   const char *description;
@@ -96,8 +127,8 @@ static const struct {
   { "info","Print program status", cmd_info},
   // { "x","Scan memory",cmd_x},
   { "p","Print value of expression", cmd_p},
-  // { "w","Set watchpoint", cmd_w },
-  // { "d","Delete watchpoint", cmd_d }
+  { "w","Set watchpoint", cmd_w },
+  { "d","Delete watchpoint", cmd_d }
 };
 
 
@@ -146,4 +177,7 @@ void sdb_mainloop() {
 void init_sdb() {
   /* Compile the regular expressions. */
   init_regex();
+
+  /* Initialize the watchpoint pool. */
+  init_wp_pool();
 }
