@@ -294,8 +294,7 @@ uint32_t fun2(uint32_t a, uint32_t b) { return a < b; }
 - `make -C am-kernels/tests/cpu-tests ARCH=riscv32e-npc run` 除开 wrong  ALL pass
 - `make -C riscv-tests ARCH=riscv32e-npc TEST_ISA=i run` ALL PASS
 - `make -C riscv-arch-test ARCH=riscv32e-npc TEST_ISA=E run` ALL PASS 
-- 
-
+- `make -C am-kernels/benchmarks/microbench ARCH=riscv32e-npc mainargs=test run` ，MicroBench 的 printf() 会访问 UART 寄存器，而 NEMU 参考模型暂未支持对应地址，导致访问越界。关闭 DiffTest 并补齐 stdio.c 中的 printf() 后，NPC 独立仿真通过 MicroBench test 规模的全部测试。NEMU的UART 留到C2完成。 
 
 **riscv-arch-test：minirv-npc 栈访问越界**
 
