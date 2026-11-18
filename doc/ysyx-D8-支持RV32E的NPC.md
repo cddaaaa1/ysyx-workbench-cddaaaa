@@ -268,11 +268,33 @@ Branch 指令需要完成两项计算：分支条件比较和目标地址计算�
 ```
 
 **Q: 硬件如何区分有符号数和无符号数?**
+```c
+#include <stdint.h>
+int32_t fun1(int32_t a, int32_t b) { return a < b; }
+uint32_t fun2(uint32_t a, uint32_t b) { return a < b; }
+```
+```
+00000000 <fun1>:
+   0:   00b52533                slt     a0,a0,a1
+   4:   00008067                ret
+
+00000008 <fun2>:
+   8:   00b53533                sltu    a0,a0,a1
+   c:   00008067                ret
+```
+寄存器的二进制数据本身没有有符号或无符号的标签。当运算确实需要区分时，由编译器选择对应的指令，硬件再根据指令决定如何解释这些位。如果传入a = 0xffffffff，b = 0x00000001。 fun1 有符号， a看成-1，-1<1成立所以返回1； fun2 无符号， a看成4294967295， 4294967295 < 1不成立，返回0。
 
 
 **测试**
 - `make -C am-kernels/tests/cpu-tests ARCH=riscv32e-npc run` 除开 wrong  ALL pass
 - `make -C riscv-tests ARCH=riscv32e-npc TEST_ISA=i run` ALL PASS
+- `make -C riscv-arch-test ARCH=riscv32e-npc TEST_ISA=E run` ALL PASS 
+
+
+**问题**
+-`make -C riscv-arch-test ARCH=minirv-npc TEST_ISA=E run ALL=add-01` 报 `address = 0x01fddb79 is out of bound of pmem [0x80000000, 0x87ffffff] at pc = 0x800000f0` 
+- 已通过反汇编定位到指令：`800000f0:	fe812e23          	sw	s0,-4(sp)`
+- 
 
 ### TODO
 1. lsu_misalign 向仿真环境报错

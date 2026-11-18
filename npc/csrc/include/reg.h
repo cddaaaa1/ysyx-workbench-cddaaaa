@@ -10,5 +10,6 @@ struct CPUState {
 extern CPUState cpu_state;
 
 void reg_display();
+uint32_t reg_str2val(const char *s, bool *success);
 
 #endif

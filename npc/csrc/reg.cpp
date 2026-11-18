@@ -1,5 +1,6 @@
 #include <cinttypes>
 #include <stdio.h>
+#include <string.h>
 #include "include/reg.h"
 #include "include/sim.h"
 
@@ -37,4 +38,31 @@ void reg_display() {
   }
   printf("\nProgram Counter:\n");
   printf("%-3s: 0x%08" PRIx32 "\n", "pc", pc);
+}
+
+uint32_t reg_str2val(const char *s, bool *success) {
+  const char *reg_name = s + 1; // skip '$' character
+  uint32_t value = 0;
+  *success = false;
+
+  /* Read live RTL state so expressions also work without DiffTest. */
+  /* Use the RTL register count to support both RV32E and RV32I. */
+  const int gpr_count = sim_gpr_count();
+  for (int i = 0; i < gpr_count && i < 32; i++) {
+    if (strcmp(reg_name, reg_names[i]) == 0) {
+      *success = sim_read_gpr(i, value);
+      return value;
+    }
+  }
+  if (strcmp(reg_name, "pc") == 0) {
+    *success = sim_read_pc(value);
+    return value;
+  }
+
+  if (strcmp(s, "$0") == 0) {
+    *success = true;
+    return 0;
+  }
+
+  return 0;
 }

@@ -2,6 +2,7 @@
 #include "include/npc.h"
 #include "include/reg.h"
 #include <stdio.h>
+#include <cinttypes>
 #include <cstdlib>
 #include <cstring>
 #include <cerrno>
@@ -10,6 +11,8 @@
 #include <readline/history.h>
 
 static bool is_batch_mode = false;
+
+void init_regex();
 
 static char* rl_gets() {
   static char *line_read = NULL;
@@ -67,6 +70,21 @@ static int cmd_info(char *args){
   return 0;
 }
 
+static int cmd_p(char *args){
+  if (args == NULL) {
+    printf("Usage: p EXPR\n");
+    return 0;
+  }
+  bool success;
+  uint32_t result = expr(args, &success);
+  if (success) {
+    printf("%s = 0x%08" PRIx32 "\n", args, result);
+  } else {
+    printf("Invalid expression: %s\n", args);
+  }
+  return 0;
+}
+
 static const struct {
   const char *name;
   const char *description;
@@ -77,7 +95,7 @@ static const struct {
   { "si"," Step through N instructions (default: 1)", cmd_si},
   { "info","Print program status", cmd_info},
   // { "x","Scan memory",cmd_x},
-  // { "p","Print value of expression", cmd_p},
+  { "p","Print value of expression", cmd_p},
   // { "w","Set watchpoint", cmd_w },
   // { "d","Delete watchpoint", cmd_d }
 };
@@ -123,4 +141,9 @@ void sdb_mainloop() {
 
     if (i == NR_CMD) { printf("Unknown command '%s'\n", cmd); }
   }
+}
+
+void init_sdb() {
+  /* Compile the regular expressions. */
+  init_regex();
 }

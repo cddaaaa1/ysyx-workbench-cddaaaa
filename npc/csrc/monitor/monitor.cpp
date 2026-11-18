@@ -70,6 +70,8 @@ bool init_monitor(int argc, char *argv[]) {
   IFDEF(DIFFTEST,init_difftest(diff_so_file, img_size, difftest_port));
 #endif
 
+  init_sdb();
+
   if (batch) sdb_set_batch_mode();
   return true;
 }

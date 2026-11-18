@@ -24,7 +24,8 @@ HDRS        := $(wildcard $(VSRC_DIR)/include/*.vh) $(wildcard $(CSRC_DIR)/inclu
 SIM_CSRC    := $(wildcard $(CSRC_DIR)/*.cpp) $(wildcard $(CSRC_DIR)/monitor/*.cpp) $(wildcard $(CSRC_DIR)/monitor/sdb/*.cpp)
 HDRS += $(wildcard $(CSRC_DIR)/monitor/*.h) $(wildcard $(CSRC_DIR)/monitor/sdb/*.h)
 LDFLAGS += -lreadline
-NPC_ARGS ?= -b  --log=$(BUILD_DIR)/npc-log.txt
+BATCH ?= 1
+NPC_ARGS ?= $(if $(filter 1,$(BATCH)),-b) --log=$(BUILD_DIR)/npc-log.txt
 CDEFINES += -DTOP_NAME=V$(TOPNAME) 
 
 ifneq ($(filter minirv-npc riscv32e-npc,$(ARCH)),)
