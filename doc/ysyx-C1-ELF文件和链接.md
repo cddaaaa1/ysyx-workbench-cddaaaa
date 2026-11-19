@@ -219,5 +219,17 @@ Relocation section '.rela.text.check' at offset 0x4c4 contains 3 entries:
 80000024: 0c8000ef  jal 800000ec <halt>
 ```
 
+### 问题合集 
 
+**Q:.elf和.bin的关系**
+1. 生成关系：链接器生成 .elf，再通过 objcopy -O binary 提取出 .bin。
+2. 内容区别：
+   
+| 对比 | 链接后的 .elf | 生成的 .bin |
+|---|---|---|
+| 机器指令和数据 | 有 | 有 |
+| ELF 头、节头表、程序头表 | 有 | 无 |
+| 符号名，例如 main、halt | 可以保留 | 无 |
+| 加载地址、入口地址等元信息 | 可以记录 | 不记录，需要运行环境约定 |
 
+3. 实际使用：当前 NPC、NEMU 都将 .bin 加载到约定的模拟内存位置；.elf 当前在NEMU被用于在ftrace 时读取函数符号

@@ -294,7 +294,7 @@ uint32_t fun2(uint32_t a, uint32_t b) { return a < b; }
 - `make -C am-kernels/tests/cpu-tests ARCH=riscv32e-npc run` 除开 wrong  ALL pass
 - `make -C riscv-tests ARCH=riscv32e-npc TEST_ISA=i run` ALL PASS
 - `make -C riscv-arch-test ARCH=riscv32e-npc TEST_ISA=E run` ALL PASS 
-- `make -C am-kernels/benchmarks/microbench ARCH=riscv32e-npc mainargs=test run` ，MicroBench 的 printf() 会访问 UART 寄存器，而 NEMU 参考模型暂未支持对应地址，导致访问越界。关闭 DiffTest 并补齐 stdio.c 中的 printf() 后，NPC 独立仿真通过 MicroBench test 规模的全部测试。NEMU的UART 留到C2完成。 
+- `make -C am-kernels/benchmarks/microbench ARCH=riscv32e-npc mainargs=test run` ，MicroBench 的 printf() 会访问 UART 寄存器，而 NEMU 参考模型暂未支持对应地址，导致访问越界。同时NEMU也暂时不支持csr. 解决：关闭 DiffTest 并补齐 stdio.c 中的 printf() 后，NPC 独立仿真通过 MicroBench test 规模的全部测试。NEMU的UART 留到C2完成。 
 
 **riscv-arch-test：minirv-npc 栈访问越界**
 
@@ -309,6 +309,18 @@ uint32_t fun2(uint32_t a, uint32_t b) { return a < b; }
 
 - 第一条右移将 sp 写为测试数据 `0x01fddb7d`；第二条右移的 minirv 展开代码通过 `sw s0,-4(sp)` 保存临时寄存器，因而访问非法地址 `0x01fddb79`。
 - 根因是软件适配冲突：架构测试将 x2（sp）当作普通寄存器初始化，而 minirv 替换代码依赖有效的栈指针。这次越界不属于硬件计算错误。
+
+### 按五级数据通路整理了模块职责
+
+![五级流水架构](../pic/fivestages.png)
+Computer Organization and Design by David A. Patterson
+
+- IFU 负责保存 PC、计算 PC + 4 和选择 next_pc
+- EXU 负责判断是否跳转并计算目标地址
+- WBU 负责选择写回数据
+
+- 用 MuxKey 统一了 alu_src1、alu_src2、rt_src1、wb_data_o 和 next_pc 五处选择逻辑，便于对照架构图阅读 RTL
+- 将 x0 写保护移入 GPR
 
 ### TODO
 1. lsu_misalign 向仿真环境报错
