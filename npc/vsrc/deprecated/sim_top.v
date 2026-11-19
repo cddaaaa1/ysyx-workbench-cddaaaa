@@ -1,12 +1,12 @@
 `include "define.vh"
 
 module sim_top (
-  input clk_i,
-  input rst_i,
+  input                   clk_i,
+  input                   rst_i,
   output [`CPU_WIDTH-1:0] pc_o,
   output [`CPU_WIDTH-1:0] inst_o,
-  output ebreak_o,
-  output misalign_o
+  output                  ebreak_o,
+  output                  misalign_o
 );
 
   reg [63:0] cycle;

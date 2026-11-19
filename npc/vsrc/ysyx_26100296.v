@@ -1,25 +1,25 @@
 `include "define.vh"
 module ysyx_26100296(
-  input         clock,
-  input         reset,
-  output        io_ifu_reqValid,
-  output [`CPU_WIDTH-1:0] io_ifu_addr,
-  input         io_ifu_respValid,
-  input  [`CPU_WIDTH-1:0] io_ifu_rdata,
-  output        io_lsu_reqValid,
-  output [`CPU_WIDTH-1:0] io_lsu_addr,
-  output [1:0]  io_lsu_size,
-  output        io_lsu_wen,
-  output [`CPU_WIDTH-1:0] io_lsu_wdata,
+  input                     clock,
+  input                     reset,
+  output                    io_ifu_reqValid,
+  output [`CPU_WIDTH-1:0]   io_ifu_addr,
+  input                     io_ifu_respValid,
+  input  [`CPU_WIDTH-1:0]   io_ifu_rdata,
+  output                    io_lsu_reqValid,
+  output [`CPU_WIDTH-1:0]   io_lsu_addr,
+  output [1:0]              io_lsu_size,
+  output                    io_lsu_wen,
+  output [`CPU_WIDTH-1:0]   io_lsu_wdata,
   output [`CPU_WIDTH/8-1:0] io_lsu_wmask,
-  input         io_lsu_respValid,
-  input  [`CPU_WIDTH-1:0] io_lsu_rdata
+  input                     io_lsu_respValid,
+  input  [`CPU_WIDTH-1:0]   io_lsu_rdata
 );
   wire [`CPU_WIDTH-1:0] pc;
   wire [`CPU_WIDTH-1:0] inst;
   reg         misalign;
 
-  wire [`CPU_WIDTH-1:0] next_pc;
+  wire [`CPU_WIDTH-1:0] pc_plus4;
 
   // ---- IFU ----
   wire        ifu_valid;
@@ -53,7 +53,7 @@ module ysyx_26100296(
   // ---- GPR -> EXU / LSU ----
   wire [`CPU_WIDTH-1:0] rdata1, rdata2;
 
-  // ---- EXU -> LSU / WBU ----
+  // ---- EXU -> LSU / WBU / IFU ----
   wire [`CPU_WIDTH-1:0] alu_result;
   wire        redirect;
   wire [`CPU_WIDTH-1:0] redirect_target;
@@ -72,7 +72,7 @@ module ysyx_26100296(
   wire lsu_done = lsu_busy && io_lsu_respValid;
   wire commit   = (ifu_valid && !inst_is_load) || lsu_done;
 
-  wire rf_we = gpr_we && (waddr != {`REG_WIDTH{1'b0}}) && commit;
+  wire rf_we = gpr_we && commit;
   wire pc_we = commit;
 
   always @(posedge clock) begin
@@ -80,18 +80,14 @@ module ysyx_26100296(
     else       misalign <= lsu_misalign;
   end
 
-  ysyx_26100296_pc_reg u_pc_reg(
-    .clk_i(clock),
-    .rst_i(reset),
-    .we_i(pc_we),
-    .next_pc_i(next_pc),
-    .pc_o(pc)
-  );
-
   ysyx_26100296_ifu u_ifu(
     .clk_i(clock),
     .rst_i(reset),
-    .pc_i(pc),
+    .pc_we_i(pc_we),
+    .pc_o(pc),
+    .redirect_i(redirect),
+    .redirect_target_i(redirect_target),
+    .pc_plus4_o(pc_plus4),
     .inst_o(inst),
     .lsu_busy_i(lsu_busy),
     .ifu_valid_o(ifu_valid),
@@ -177,15 +173,12 @@ module ysyx_26100296(
   );
 
   ysyx_26100296_wbu u_wbu(
-    .pc_i(pc),
+    .pc_plus4_i(pc_plus4),
     .wb_sel_i(wb_sel),
     .alu_result_i(alu_result),
     .mem_rdata_i(mem_rdata),
     .csr_rdata_i(csr_rdata),
-    .redirect_i(redirect),
-    .redirect_target_i(redirect_target),
-    .wb_data_o(wb_data),
-    .next_pc_o(next_pc)
+    .wb_data_o(wb_data)
   );
 
 

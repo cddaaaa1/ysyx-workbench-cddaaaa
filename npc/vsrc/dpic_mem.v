@@ -1,19 +1,19 @@
 `include "define.vh"
 module dpic_mem(
-  input clk_i,
-  input rst_i,
-  input [`CPU_WIDTH-1:0] ifu_addr_i,
-  input ifu_reqValid_i,
-  output reg [`CPU_WIDTH-1:0] ifu_rdata_o,
-  output reg ifu_respValid_o,
-  input [`CPU_WIDTH-1:0] lsu_addr_i,
-  input [`CPU_WIDTH-1:0] lsu_wdata_i,
-  input [`CPU_WIDTH/8-1:0] lsu_wmask_i,
-  input [1:0] lsu_size_i,
-  input lsu_wen_i,
-  input lsu_reqValid_i,
-  output reg [`CPU_WIDTH-1:0] lsu_rdata_o,
-  output reg lsu_respValid_o
+  input                         clk_i,
+  input                         rst_i,
+  input      [`CPU_WIDTH-1:0]   ifu_addr_i,
+  input                         ifu_reqValid_i,
+  output reg [`CPU_WIDTH-1:0]   ifu_rdata_o,
+  output reg                    ifu_respValid_o,
+  input      [`CPU_WIDTH-1:0]   lsu_addr_i,
+  input      [`CPU_WIDTH-1:0]   lsu_wdata_i,
+  input      [`CPU_WIDTH/8-1:0] lsu_wmask_i,
+  input      [1:0]              lsu_size_i,
+  input                         lsu_wen_i,
+  input                         lsu_reqValid_i,
+  output reg [`CPU_WIDTH-1:0]   lsu_rdata_o,
+  output reg                    lsu_respValid_o
 );
 `ifndef __ICARUS__
   import "DPI-C" function int unsigned pmem_read(input int unsigned raddr);

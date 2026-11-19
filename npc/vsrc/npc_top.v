@@ -1,6 +1,6 @@
 module npc_top (
-  input  clock,
-  input  reset
+  input clock,
+  input reset
 );
 
 `ifndef YSYXSOC

@@ -1,9 +1,9 @@
 `include "define.vh"
 
 module ysyx_26100296_alu #(DATA_WIDTH = `CPU_WIDTH) (
-  input  [DATA_WIDTH-1:0]     a_i,
-  input  [DATA_WIDTH-1:0]     b_i,
-  input  [3:0]                op_i,
+  input      [DATA_WIDTH-1:0] a_i,
+  input      [DATA_WIDTH-1:0] b_i,
+  input      [3:0]            op_i,
   output reg [DATA_WIDTH-1:0] result_o,
   output reg                  cmp_result_o
 );

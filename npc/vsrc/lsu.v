@@ -1,23 +1,23 @@
 `include "define.vh"
 
 module ysyx_26100296_lsu(
-  input         clk_i,
-  input         rst_i,
-  input         valid_i,
-  input  [3:0]  lsu_op_i,
-  input  [`CPU_WIDTH-1:0] addr_i,
-  input  [`CPU_WIDTH-1:0] wdata_i,
-  input  [`CPU_WIDTH-1:0] lsu_rdata_i,
-  output reg [`CPU_WIDTH-1:0] rdata_o,
-  output        lsu_busy_o,
-  output        lsu_misalign_o,
-  output [`CPU_WIDTH-1:0] lsu_addr_o,
-  output reg [`CPU_WIDTH-1:0] lsu_wdata_o,
+  input                         clk_i,
+  input                         rst_i,
+  input                         valid_i,
+  input      [3:0]              lsu_op_i,
+  input      [`CPU_WIDTH-1:0]   addr_i,
+  input      [`CPU_WIDTH-1:0]   wdata_i,
+  input      [`CPU_WIDTH-1:0]   lsu_rdata_i,
+  output reg [`CPU_WIDTH-1:0]   rdata_o,
+  output                        lsu_busy_o,
+  output                        lsu_misalign_o,
+  output     [`CPU_WIDTH-1:0]   lsu_addr_o,
+  output reg [`CPU_WIDTH-1:0]   lsu_wdata_o,
   output reg [`CPU_WIDTH/8-1:0] lsu_wmask_o,
-  output reg [1:0]  lsu_size_o,
-  output        lsu_wen_o,
-  output        lsu_reqValid_o,
-  input         lsu_respValid_i
+  output reg [1:0]              lsu_size_o,
+  output                        lsu_wen_o,
+  output                        lsu_reqValid_o,
+  input                         lsu_respValid_i
 );
   reg state;
 

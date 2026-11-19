@@ -3,25 +3,25 @@
 module ysyx_26100296_idu(
 
   // ifu -> idu
-  input  [`CPU_WIDTH-1:0] inst_i,
+  input      [`CPU_WIDTH-1:0] inst_i,
 
   // idu -> exu
-  output reg   [`REG_WIDTH-1:0]  rs1_o,
-  output reg   [`REG_WIDTH-1:0]  rs2_o,
-  output reg   [`REG_WIDTH-1:0]  rd_o,
-  output reg          gpr_we_o,
-  output reg   [1:0]  wb_sel_o,
-  output reg   [`CPU_WIDTH-1:0] imm_o,
-  output reg   [3:0]  alu_op_o,
-  output reg          alu_src1_sel_o,
-  output reg          alu_src2_sel_o,
-  output reg          is_jump_o,
-  output reg          is_jalr_o,
-  output reg          is_branch_o,
-  output reg          rt_src1_sel_o,
-  output reg   [3:0]  lsu_op_o,
-  output reg   [11:0] csr_addr_o,
-  output reg          is_ebreak_o
+  output reg [`REG_WIDTH-1:0] rs1_o,
+  output reg [`REG_WIDTH-1:0] rs2_o,
+  output reg [`REG_WIDTH-1:0] rd_o,
+  output reg                  gpr_we_o,
+  output reg [1:0]            wb_sel_o,
+  output reg [`CPU_WIDTH-1:0] imm_o,
+  output reg [3:0]            alu_op_o,
+  output reg                  alu_src1_sel_o,
+  output reg                  alu_src2_sel_o,
+  output reg                  is_jump_o,
+  output reg                  is_jalr_o,
+  output reg                  is_branch_o,
+  output reg                  rt_src1_sel_o,
+  output reg [3:0]            lsu_op_o,
+  output reg [11:0]           csr_addr_o,
+  output reg                  is_ebreak_o
 
 );
 
